@@ -95,6 +95,75 @@ class EnhancedIPOChecker:
                 pass
             self.driver = None
     
+    def diagnose_bot_detection(self) -> dict:
+        """
+        Diagnostic tool to check if bot detection is triggered.
+        Call this manually when troubleshooting, not during normal flow.
+        
+        Returns dict with: detected (bool), reason (str), screenshot_path (str or None)
+        """
+        try:
+            page_source = self.driver.page_source.lower()
+            title = self.driver.title.lower()
+            
+            result = {
+                'detected': False,
+                'reason': None,
+                'screenshot_path': None
+            }
+            
+            # Check for bot detection indicators
+            bot_indicators = [
+                'request rejected',
+                'tsbrpframe',
+                'access denied',
+                'suspicious activity',
+                'cloudflare',
+                'just a moment',
+            ]
+            
+            for indicator in bot_indicators:
+                if indicator in page_source or indicator in title:
+                    result['detected'] = True
+                    result['reason'] = f"Found '{indicator}' in page"
+                    
+                    # Save screenshot
+                    try:
+                        timestamp = int(time.time() * 1000)
+                        screenshot_path = f"/tmp/bot_detection_{timestamp}.png"
+                        self.driver.save_screenshot(screenshot_path)
+                        result['screenshot_path'] = screenshot_path
+                    except:
+                        pass
+                    
+                    return result
+            
+            # Check for missing elements
+            has_form = '<form' in page_source
+            has_captcha = 'img[alt="captcha"]' in page_source or 'img[alt="Captcha"]' in page_source
+            has_ng_select = 'ng-select' in page_source
+            
+            if not has_form or (not has_captcha and not has_ng_select):
+                result['detected'] = True
+                result['reason'] = f"Missing elements: form={has_form}, captcha={has_captcha}, ng-select={has_ng_select}"
+                
+                try:
+                    timestamp = int(time.time() * 1000)
+                    screenshot_path = f"/tmp/bot_detection_missing_{timestamp}.png"
+                    self.driver.save_screenshot(screenshot_path)
+                    result['screenshot_path'] = screenshot_path
+                except:
+                    pass
+            
+            return result
+            
+        except Exception as e:
+            return {
+                'detected': False,
+                'reason': f'Error during check: {e}',
+                'screenshot_path': None
+            }
+    
     def get_available_ipos(self) -> List[Dict]:
         """Fetch available IPOs from the dropdown - MINIMAL VERSION to avoid bot detection."""
         try:
@@ -136,32 +205,48 @@ class EnhancedIPOChecker:
             # Wait for dropdown to open and render
             time.sleep(2.5)
             
-            # Get all IPO options
+            # Get all IPO options with their ACTUAL DOM indices
             ipos = self.driver.execute_script("""
                 const defaultText = arguments[0];
                 const options = Array.from(document.querySelectorAll('.ng-dropdown-panel .ng-option'));
                 
-                return options
-                    .filter(opt => {
-                        // Skip disabled options
-                        if (opt.classList.contains('ng-option-disabled')) return false;
-                        // Skip marked/selected options that are placeholders
-                        if (opt.classList.contains('ng-option-marked') && !opt.textContent.trim()) return false;
-                        // Skip empty options
-                        const text = opt.textContent.trim();
-                        if (!text || text.length < 5) return false;
-                        return true;
-                    })
-                    .map((opt, idx) => ({
-                        index: idx,
-                        text: opt.textContent.trim(),
-                        isDefault: opt.textContent.trim() === defaultText
-                    }));
+                // Build array with ACTUAL indices from DOM
+                const validOptions = [];
+                options.forEach((opt, actualIndex) => {
+                    // Skip disabled options
+                    if (opt.classList.contains('ng-option-disabled')) return;
+                    // Skip marked/selected options that are placeholders
+                    if (opt.classList.contains('ng-option-marked') && !opt.textContent.trim()) return;
+                    // Skip empty options
+                    const text = opt.textContent.trim();
+                    if (!text || text.length < 5) return;
+                    
+                    validOptions.push({
+                        index: actualIndex,  // ← Store ACTUAL DOM index, not filtered index
+                        text: text,
+                        isDefault: text === defaultText
+                    });
+                });
+                
+                return validOptions;
             """, default_text)
             
-            # Close dropdown
-            self.driver.execute_script("document.body.click();")
-            time.sleep(0.5)
+            # Close dropdown - CRITICAL: Must close properly or captcha will be blocked!
+            # Use a gentle close that doesn't destroy DOM elements (for later reuse)
+            self.driver.execute_script("""
+                // First, try clicking away to close naturally
+                document.body.click();
+                
+                // If panel is still visible, hide it with CSS instead of removing
+                setTimeout(() => {
+                    const panel = document.querySelector('.ng-dropdown-panel');
+                    if (panel) {
+                        panel.style.display = 'none';
+                        panel.style.visibility = 'hidden';
+                    }
+                }, 100);
+            """)
+            time.sleep(1)  # Give it time to fully close
             
             self._log(f"Found {len(ipos) if ipos else 0} IPO(s)")
             
@@ -189,42 +274,88 @@ class EnhancedIPOChecker:
             import traceback
             self._log(traceback.format_exc())
             return []
-            
-        except Exception as e:
-            self._log(f"Error fetching IPOs: {e}")
-            import traceback
-            self._log(traceback.format_exc())
-            return []
     
     def select_ipo(self, index: int) -> bool:
         """Select an IPO by index."""
         try:
-            self._log(f"Selecting IPO at index {index}...")
+            self._log(f"Selecting IPO at DOM index {index}...")
+            print(f"    Opening dropdown...")
             
-            success = self.driver.execute_script("""
+            # First, unhide any hidden dropdown panels from previous close
+            self.driver.execute_script("""
+                const panel = document.querySelector('.ng-dropdown-panel');
+                if (panel) {
+                    panel.style.display = '';
+                    panel.style.visibility = '';
+                }
+            """)
+            
+            # Open dropdown
+            self.driver.execute_script("""
                 const index = arguments[0];
                 const ngSelect = document.querySelector('ng-select');
-                if (!ngSelect) return false;
+                if (!ngSelect) {
+                    console.log('ERROR: ng-select not found');
+                    return false;
+                }
                 
                 // Click to open dropdown
                 ngSelect.click();
-                
-                // Wait for options to render
-                setTimeout(() => {
-                    const options = document.querySelectorAll('.ng-option');
-                    if (options[index]) {
-                        options[index].click();
-                    }
-                }, 300);
-                
-                return true;
+                console.log('Clicked ng-select to open dropdown');
             """, index)
             
+            # Wait for dropdown to open and render
+            time.sleep(2)
+            print(f"    Clicking option at DOM index {index}...")
+            
+            # Click the option
+            clicked = self.driver.execute_script("""
+                const index = arguments[0];
+                const options = document.querySelectorAll('.ng-dropdown-panel .ng-option');
+                console.log('Total options in dropdown:', options.length);
+                console.log('Attempting to click index:', index);
+                
+                if (options[index]) {
+                    const optionText = options[index].textContent.trim();
+                    console.log('Clicking option:', optionText);
+                    options[index].click();
+                    return true;
+                }
+                console.log('ERROR: Option not found at index:', index);
+                return false;
+            """, index)
+            
+            if not clicked:
+                self._log(f"⚠️  Option at index {index} not found!")
+                print(f"    ⚠️  Browser console shows option not found")
+                return False
+            
+            # Wait for selection to register
             time.sleep(1)
-            return success
+            print(f"    Closing dropdown...")
+            
+            # Close the dropdown panel by hiding it (not removing)
+            self.driver.execute_script("""
+                document.body.click();
+                setTimeout(() => {
+                    const panel = document.querySelector('.ng-dropdown-panel');
+                    if (panel) {
+                        panel.style.display = 'none';
+                        panel.style.visibility = 'hidden';
+                    }
+                }, 100);
+            """)
+            
+            # Give it time to fully close
+            time.sleep(1.5)
+            
+            self._log("✓ IPO selected and dropdown closed")
+            return True
             
         except Exception as e:
             self._log(f"Error selecting IPO: {e}")
+            import traceback
+            self._log(traceback.format_exc())
             return False
     
     def solve_captcha_cnn(self) -> Optional[Dict]:
@@ -776,12 +907,30 @@ def main():
             checker.driver.get(checker.BASE_URL)
             time.sleep(5)
             
+            # Check for bot detection immediately after page load
+            bot_check = checker.diagnose_bot_detection()
+            if bot_check['detected']:
+                print(f"\n❌ BOT DETECTION: {bot_check['reason']}")
+                if bot_check['screenshot_path']:
+                    print(f"   Screenshot saved: {bot_check['screenshot_path']}")
+                print("\n⚠️  Troubleshooting:")
+                print("   1. Don't use --headless mode")
+                print("   2. Wait 15-30 minutes before trying again")
+                print("   3. Check the screenshot to see what MeroShare is showing")
+                return 1
+            
             # Fetch available IPOs
             print("\nFetching available IPOs...")
             ipos = checker.get_available_ipos()
             
             if not ipos or len(ipos) == 0:
                 print("❌ Could not fetch IPO list")
+                # Check if it's bot detection
+                bot_check = checker.diagnose_bot_detection()
+                if bot_check['detected']:
+                    print(f"\n⚠️  Reason: {bot_check['reason']}")
+                    if bot_check['screenshot_path']:
+                        print(f"   Screenshot: {bot_check['screenshot_path']}")
                 return 1
             
             # Display IPO options
@@ -822,15 +971,19 @@ def main():
                 selected_ipo = ipos[choice_idx]
                 print(f"\n✓ Selected: {selected_ipo['text']}")
                 
-                # SMART SELECTION: Only interact with dropdown if NOT choosing the default (option 1)
-                if choice_idx == 0:
+                # SMART SELECTION: Only interact with dropdown if NOT choosing the already-selected default
+                if selected_ipo.get('isDefault'):
                     print("  (Using default selection, no dropdown interaction needed)")
                 else:
                     print(f"  (Changing selection to option {choice_idx + 1}...)")
-                    if not checker.select_ipo(choice_idx):
+                    # Use the actual DOM index from selected_ipo, not the filtered choice_idx
+                    actual_dom_index = selected_ipo['index']
+                    print(f"  [DEBUG] Clicking DOM index {actual_dom_index}")
+                    if not checker.select_ipo(actual_dom_index):
                         print("❌ Failed to select IPO")
                         return 1
                     time.sleep(2)
+                    print("  ✓ IPO selection completed")
             
             # Check results for all BOIDs
             print(f"\nChecking results for {len(boids)} BOID(s)...")

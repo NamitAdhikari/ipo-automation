@@ -9,8 +9,9 @@ Fully automated IPO result checker for MeroShare (iporesult.cdsc.com.np) with cu
 - ✅ **Beautiful Table Output** - Clean, formatted results display
 - ✅ **Smart IPO Selection** - Interactive dropdown or auto-select mode
 - ✅ **Auto-Retry Logic** - Handles request rejections and browser restarts
-- ✅ **Headless Mode** - Run without GUI (optional)
-- ✅ **Low Bot Detection** - Minimal stealth options for natural browsing
+- ✅ **Bot Detection Alerts** - Detects and warns when MeroShare blocks automation
+- ⚠️ **Headless Mode Available** - But not recommended (triggers bot detection)
+- ✅ **Low Bot Detection** - Minimal stealth options for natural browsing in visible mode
 
 ## Quick Start
 
@@ -86,17 +87,19 @@ See detailed logs and keep browser open:
 uv run python ipo_fully_auto_enhanced.py --debug
 ```
 
-**Option E: Headless Mode**
+**Option E: Headless Mode (⚠️ Not Recommended)**
 
 Run without opening a visible browser window:
 ```bash
 uv run python ipo_fully_auto_enhanced.py --headless
 ```
 
+⚠️ **Warning:** Headless mode often triggers bot detection on MeroShare. Use visible browser mode for reliability.
+
 **Combine options:**
 ```bash
-# Single BOID + auto-select + headless
-uv run python ipo_fully_auto_enhanced.py --boid 1301260001246310 --auto --headless
+# Single BOID + auto-select (without headless - more reliable)
+uv run python ipo_fully_auto_enhanced.py --boid 1301260001246310 --auto
 ```
 
 ### Step 3: Interpret Results
@@ -226,10 +229,17 @@ useAutomationExtension: False
 - ❌ Repeated dropdown interactions
 
 **Best practices:**
-- Use default IPO selection (option 1) whenever possible
-- Use `--auto` flag for non-interactive mode
-- Don't run script repeatedly in short periods
-- Wait 15+ minutes between sessions
+- ✅ Use visible browser mode (not `--headless`)
+- ✅ Use default IPO selection (option 1) whenever possible
+- ✅ Use `--auto` flag for non-interactive mode
+- ✅ Don't run script repeatedly in short periods
+- ✅ Wait 15+ minutes between sessions
+
+**Why headless mode doesn't work:**
+- MeroShare detects headless browsers through various fingerprinting techniques
+- Bot detection check automatically saves screenshot to `/tmp/bot_detection_*.png`
+- The screenshot shows MeroShare's blocking page instead of the IPO form
+- **Recommendation:** Always use visible browser mode for production use
 
 ### MeroShare Quirks
 The site has some typos that the script handles:
@@ -363,12 +373,12 @@ uv run python ipo_fully_auto_enhanced.py --debug
 ```bash
 num_samples         # Number of samples to collect (default: 10)
 --debug             # Show detailed capture information
---headless          # Run without browser GUI
+--headless          # Run without browser GUI (⚠️ may trigger bot detection)
 ```
 
 **Examples:**
 ```bash
-# Collect 20 samples
+# Collect 20 samples (with visible browser - recommended)
 uv run python test_live_quick.py 20
 
 # Collect with debug output
@@ -398,17 +408,25 @@ BOID=1301260001246310,1301260001246311
 
 ### Running in Production
 
-**Cron job example** (check every hour):
+⚠️ **Note:** Headless mode frequently triggers bot detection. For automated runs, use visible browser with `--auto` flag.
+
+**Scheduled task with visible browser (Recommended):**
 ```bash
-# Add to crontab: crontab -e
-0 * * * * cd "/Users/namit/Documents/Projects/MMP/automations/IPO Result" && /path/to/uv run python ipo_fully_auto_enhanced.py --auto --headless >> /tmp/ipo_results.log 2>&1
+# Run every hour with visible browser (more reliable)
+0 * * * * cd "/Users/namit/Documents/Projects/MMP/automations/IPO Result" && DISPLAY=:0 /path/to/uv run python ipo_fully_auto_enhanced.py --auto >> /tmp/ipo_results.log 2>&1
 ```
 
-**Scheduled task** (macOS):
+**Cron job example:**
 ```bash
-# Create a launchd plist for scheduled execution
-# See: https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/ScheduledJobs.html
+# Check every 2 hours (to avoid rate limiting)
+0 */2 * * * cd "/Users/namit/Documents/Projects/MMP/automations/IPO Result" && /path/to/uv run python ipo_fully_auto_enhanced.py --auto >> /tmp/ipo_results.log 2>&1
 ```
+
+**Important for automation:**
+- ✅ Use `--auto` flag (non-interactive)
+- ⚠️ Avoid `--headless` (triggers bot detection)
+- ✅ Run max every 2 hours to avoid rate limits
+- ✅ Set `DISPLAY=:0` for visible browser in cron jobs
 
 ### Dataset Management
 
@@ -436,6 +454,30 @@ rm -rf captcha_dataset_augmented/
 
 ## Troubleshooting
 
+### Quick Diagnosis
+
+Run this command to diagnose issues:
+```bash
+uv run python ipo_fully_auto_enhanced.py --debug
+```
+
+**Check these in order:**
+
+1. **Bot Detection?** Look for `/tmp/bot_detection_*.png` screenshot
+   - If exists → Bot detection triggered
+   - Solution: Remove `--headless`, wait 15-30 min
+
+2. **IP Blocked?** Look for "Request rejected" in output
+   - Solution: Wait 15-30 minutes
+
+3. **Invalid Captcha?** Model prediction wrong repeatedly
+   - Solution: Collect more samples, retrain model
+
+4. **No IPOs?** Only showing 1 IPO
+   - This is normal - only 1 IPO available currently
+
+---
+
 ### Request Rejected / IP Blocked
 **Symptoms:** "Request rejected" popup, TSBrPFrame iframe, or browser shows blocking message
 
@@ -460,16 +502,44 @@ rm -rf captcha_dataset_augmented/
 
 **Solution:** This is normal behavior - script will use the default IPO
 
-### Bot Detection Triggered
-**Symptoms:** Page won't load, repeated failures, suspicious activity warnings
+### Bot Detection Triggered (Including Headless Mode Issues)
+**Symptoms:** 
+- "Could not fetch IPO list" error
+- Page won't load properly
+- Blank page or missing form elements
+- Repeated failures
 
-**Cause:** Too much automation activity or excessive stealth options
+**Cause:** Bot detection triggered by:
+- Headless mode (most common)
+- Too much automation activity
+- Excessive dropdown interactions
+- Rate limiting
+
+**How to verify if bot detection is triggered:**
+1. **Check debug screenshots:** Look in `/tmp/` for `bot_detection_*.png` files (auto-saved)
+2. **Check console output** for these messages:
+   ```
+   ⚠️  BOT DETECTION: Found 'request rejected' in page
+   ⚠️  BOT DETECTION: Missing form elements (captcha=False, ng-select=False)
+   ```
+3. **Run with debug flag** to see page details:
+   ```bash
+   uv run python ipo_fully_auto_enhanced.py --debug
+   ```
 
 **Solution:** 
+- **Remove `--headless` flag** - Headless mode often triggers detection
+  ```bash
+  # Instead of:
+  uv run python ipo_fully_auto_enhanced.py --headless --auto
+  
+  # Use:
+  uv run python ipo_fully_auto_enhanced.py --auto
+  ```
 - Use `--auto` flag to pick default IPO (no dropdown interaction)
-- Reduce run frequency
-- Don't use multiple browser restarts in short time
-- Wait longer between attempts (15+ minutes)
+- Wait 15-30 minutes before trying again
+- Reduce run frequency (max 2-3 runs per 15 minutes)
+- Check `/tmp/bot_detection_*.png` to see what MeroShare is showing
 
 ### Detection Logic Issues
 **Problem:** Script says "Invalid captcha" when result shows "Sorry not allotted"
