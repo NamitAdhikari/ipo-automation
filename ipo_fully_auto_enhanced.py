@@ -26,10 +26,17 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from texttable import Texttable
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich import print as rprint
 
 # Import our custom CNN captcha solver
 from captcha_inference_advanced import CaptchaInferenceAdvanced
+
+# Initialize rich console
+console = Console()
 
 
 class EnhancedIPOChecker:
@@ -279,7 +286,7 @@ class EnhancedIPOChecker:
         """Select an IPO by index."""
         try:
             self._log(f"Selecting IPO at DOM index {index}...")
-            print(f"    Opening dropdown...")
+            console.print(f"    [dim]Opening dropdown...[/dim]")
             
             # First, unhide any hidden dropdown panels from previous close
             self.driver.execute_script("""
@@ -306,7 +313,7 @@ class EnhancedIPOChecker:
             
             # Wait for dropdown to open and render
             time.sleep(2)
-            print(f"    Clicking option at DOM index {index}...")
+            console.print(f"    [dim]Clicking option at DOM index {index}...[/dim]")
             
             # Click the option
             clicked = self.driver.execute_script("""
@@ -327,12 +334,12 @@ class EnhancedIPOChecker:
             
             if not clicked:
                 self._log(f"⚠️  Option at index {index} not found!")
-                print(f"    ⚠️  Browser console shows option not found")
+                console.print(f"    [yellow]⚠️  Browser console shows option not found[/yellow]")
                 return False
             
             # Wait for selection to register
             time.sleep(1)
-            print(f"    Closing dropdown...")
+            console.print(f"    [dim]Closing dropdown...[/dim]")
             
             # Close the dropdown panel by hiding it (not removing)
             self.driver.execute_script("""
@@ -759,9 +766,9 @@ class EnhancedIPOChecker:
         results = []
         
         for idx, boid in enumerate(boids):
-            print(f"\n{'='*70}")
-            print(f"Checking BOID {idx + 1}/{len(boids)}: {boid}")
-            print(f"{'='*70}")
+            console.print(f"\n[bold cyan]{'─'*70}[/bold cyan]")
+            console.print(f"[bold]Checking BOID {idx + 1}/{len(boids)}:[/bold] [cyan]{boid}[/cyan]")
+            console.print(f"[bold cyan]{'─'*70}[/bold cyan]")
             
             result = self.check_single_boid(boid, ipo_name)
             result['boid'] = boid
@@ -772,13 +779,13 @@ class EnhancedIPOChecker:
                 self.rejection_count += 1
                 
                 if self.rejection_count >= self.MAX_REJECTION_RETRIES:
-                    print("\n⛔ Maximum rejection retries reached!")
-                    print("MeroShare has blocked further requests.")
-                    print("Please wait 15-30 minutes before trying again.")
+                    console.print("\n[red]⛔ Maximum rejection retries reached![/red]")
+                    console.print("[yellow]MeroShare has blocked further requests.[/yellow]")
+                    console.print("[dim]Please wait 15-30 minutes before trying again.[/dim]")
                     break
                 
-                print(f"\n⚠️  Request rejected (retry {self.rejection_count}/{self.MAX_REJECTION_RETRIES})")
-                print("Restarting browser and retrying...")
+                console.print(f"\n[yellow]⚠️  Request rejected (retry {self.rejection_count}/{self.MAX_REJECTION_RETRIES})[/yellow]")
+                console.print("[dim]Restarting browser and retrying...[/dim]")
                 
                 # Restart browser
                 self.close()
@@ -802,21 +809,17 @@ class EnhancedIPOChecker:
         return results
     
     def display_results_table(self, ipo_name: str, results: List[Dict]):
-        """Display results in a beautiful text table."""
-        print(f"\n{'='*70}")
-        print(f"IPO RESULT SUMMARY")
-        print(f"{'='*70}\n")
+        """Display results in a beautiful rich table."""
+        console.print()
         
-        # Create table
-        table = Texttable()
-        table.set_cols_width([20, 15, 12, 30])
-        table.set_cols_align(['l', 'c', 'c', 'l'])
-        table.set_cols_dtype(['t', 't', 't', 't'])
+        # Create rich table
+        table = Table(title=f"[bold cyan]IPO RESULT SUMMARY[/bold cyan]\n[dim]{ipo_name}[/dim]", 
+                     show_header=True, header_style="bold magenta", border_style="cyan")
         
-        # Header row
-        table.add_row([f"IPO: {ipo_name}", "", "", ""])
-        table.add_row(["─" * 20, "─" * 15, "─" * 12, "─" * 30])
-        table.add_row(["BOID", "Status", "Quantity", "Message"])
+        table.add_column("BOID", style="dim", width=18)
+        table.add_column("Status", justify="center", width=20)
+        table.add_column("Quantity", justify="center", width=10)
+        table.add_column("Message", width=30)
         
         # Data rows
         for result in results:
@@ -825,26 +828,30 @@ class EnhancedIPOChecker:
             quantity = result.get('quantity', 0)
             message = result.get('message', '')
             
-            # Format quantity
+            # Format status with colors
             if status == 'Allotted':
                 qty_str = str(quantity) if quantity != '?' else '?'
-                status_emoji = '✅'
+                status_display = f"[green]✅ {status}[/green]"
+                qty_display = f"[green bold]{qty_str}[/green bold]"
+                message_display = f"[green]{message[:28]}[/green]" if len(message) > 28 else f"[green]{message}[/green]"
             elif status == 'Not Allotted':
                 qty_str = '0'
-                status_emoji = '❌'
+                status_display = f"[red]❌ {status}[/red]"
+                qty_display = f"[dim]{qty_str}[/dim]"
+                message_display = f"[dim]{message[:28]}[/dim]" if len(message) > 28 else f"[dim]{message}[/dim]"
             else:
                 qty_str = '-'
-                status_emoji = '⚠️'
+                status_display = f"[yellow]⚠️  {status}[/yellow]"
+                qty_display = f"[yellow]{qty_str}[/yellow]"
+                message_display = f"[yellow]{message[:28]}[/yellow]" if len(message) > 28 else f"[yellow]{message}[/yellow]"
             
-            table.add_row([
-                f"{boid[:6]}...{boid[-4:]}",  # Truncate BOID
-                f"{status_emoji} {status}",
-                qty_str,
-                message[:28] if len(message) > 28 else message
-            ])
+            # Truncate BOID
+            boid_display = f"{boid[:6]}...{boid[-4:]}"
+            
+            table.add_row(boid_display, status_display, qty_display, message_display)
         
-        print(table.draw())
-        print(f"\n{'='*70}\n")
+        console.print(table)
+        console.print()
 
 
 def load_boids_from_env() -> List[str]:
@@ -873,25 +880,29 @@ def main():
     
     args = parser.parse_args()
     
-    # Banner
-    print("\n" + "="*70)
-    print("  IPO RESULT CHECKER - ENHANCED & AUTOMATED")
-    print("  Powered by Custom CNN Model (73%+ Accuracy)")
-    print("="*70 + "\n")
+    # Banner with rich
+    console.print()
+    console.print(Panel.fit(
+        "[bold cyan]IPO RESULT CHECKER[/bold cyan]\n"
+        "[dim]Enhanced & Automated[/dim]\n"
+        "[yellow]⚡ Powered by Custom CNN Model (73%+ Accuracy)[/yellow]",
+        border_style="cyan"
+    ))
+    console.print()
     
     # Load BOIDs
     if args.boid:
         boids = [args.boid]
-        print(f"✓ Using BOID from command line: {args.boid}")
+        console.print(f"[green]✓[/green] Using BOID from command line: [cyan]{args.boid}[/cyan]")
     else:
         boids = load_boids_from_env()
         if not boids:
-            print("❌ No BOID provided!")
-            print("\nPlease either:")
-            print("  1. Add BOID to .env file (see .env.sample)")
-            print("  2. Use --boid flag: python ipo_fully_auto_enhanced.py --boid 1301260001246310")
+            console.print("[red]❌ No BOID provided![/red]")
+            console.print("\n[yellow]Please either:[/yellow]")
+            console.print("  [dim]1. Add BOID to .env file (see .env.sample)[/dim]")
+            console.print("  [dim]2. Use --boid flag: python ipo_fully_auto_enhanced.py --boid 1301260001246310[/dim]")
             return 1
-        print(f"✓ Loaded {len(boids)} BOID(s) from .env file")
+        console.print(f"[green]✓[/green] Loaded [cyan]{len(boids)}[/cyan] BOID(s) from .env file")
     
     # Initialize checker
     checker = EnhancedIPOChecker(debug=args.debug, headless=args.headless)
@@ -903,90 +914,88 @@ def main():
         # Main loop - allows checking multiple IPOs
         while True:
             # Load page
-            print("\nLoading IPO result page...")
+            console.print("\n[dim]Loading IPO result page...[/dim]")
             checker.driver.get(checker.BASE_URL)
             time.sleep(5)
             
             # Check for bot detection immediately after page load
             bot_check = checker.diagnose_bot_detection()
             if bot_check['detected']:
-                print(f"\n❌ BOT DETECTION: {bot_check['reason']}")
+                console.print(f"\n[red]❌ BOT DETECTION:[/red] [yellow]{bot_check['reason']}[/yellow]")
                 if bot_check['screenshot_path']:
-                    print(f"   Screenshot saved: {bot_check['screenshot_path']}")
-                print("\n⚠️  Troubleshooting:")
-                print("   1. Don't use --headless mode")
-                print("   2. Wait 15-30 minutes before trying again")
-                print("   3. Check the screenshot to see what MeroShare is showing")
+                    console.print(f"   [dim]Screenshot saved: {bot_check['screenshot_path']}[/dim]")
+                console.print("\n[yellow]⚠️  Troubleshooting:[/yellow]")
+                console.print("   [dim]1. Don't use --headless mode[/dim]")
+                console.print("   [dim]2. Wait 15-30 minutes before trying again[/dim]")
+                console.print("   [dim]3. Check the screenshot to see what MeroShare is showing[/dim]")
                 return 1
             
             # Fetch available IPOs
-            print("\nFetching available IPOs...")
+            console.print("\n[dim]Fetching available IPOs...[/dim]")
             ipos = checker.get_available_ipos()
             
             if not ipos or len(ipos) == 0:
-                print("❌ Could not fetch IPO list")
+                console.print("[red]❌ Could not fetch IPO list[/red]")
                 # Check if it's bot detection
                 bot_check = checker.diagnose_bot_detection()
                 if bot_check['detected']:
-                    print(f"\n⚠️  Reason: {bot_check['reason']}")
+                    console.print(f"\n[yellow]⚠️  Reason:[/yellow] {bot_check['reason']}")
                     if bot_check['screenshot_path']:
-                        print(f"   Screenshot: {bot_check['screenshot_path']}")
+                        console.print(f"   [dim]Screenshot: {bot_check['screenshot_path']}[/dim]")
                 return 1
             
             # Display IPO options
-            print("\n" + "="*70)
+            console.print()
             if len(ipos) == 1:
-                print(f"Using IPO: {ipos[0]['text']}")
-                print("="*70)
+                console.print(Panel(f"[cyan]{ipos[0]['text']}[/cyan]", title="[bold]Using IPO[/bold]", border_style="blue"))
                 choice_idx = 0
                 selected_ipo = ipos[0]
             else:
-                print("Available IPOs:")
-                print("="*70)
+                console.print(Panel.fit("[bold cyan]Available IPOs[/bold cyan]", border_style="cyan"))
                 for idx, ipo in enumerate(ipos):
-                    default_marker = " (default)" if ipo.get('isDefault') else ""
-                    print(f"  {idx + 1}. {ipo['text']}{default_marker}")
-                print("="*70)
+                    default_marker = " [dim](default)[/dim]" if ipo.get('isDefault') else ""
+                    console.print(f"  [yellow]{idx + 1}.[/yellow] {ipo['text']}{default_marker}")
+                console.print()
                 
                 # Get user choice
                 if args.auto:
                     # Auto-select first IPO (default)
                     choice_idx = 0
-                    print(f"\n✓ Auto-selected: {ipos[0]['text']}")
+                    console.print(f"[green]✓[/green] Auto-selected: [cyan]{ipos[0]['text']}[/cyan]")
                 else:
                     # Interactive selection
                     while True:
                         try:
-                            choice = input(f"\nSelect IPO (1-{len(ipos)}): ").strip()
+                            choice = console.input(f"[bold]Select IPO (1-{len(ipos)}):[/bold] ").strip()
                             choice_idx = int(choice) - 1
                             
                             if 0 <= choice_idx < len(ipos):
                                 break
                             else:
-                                print(f"Please enter a number between 1 and {len(ipos)}")
+                                console.print(f"[yellow]Please enter a number between 1 and {len(ipos)}[/yellow]")
                         except (ValueError, KeyboardInterrupt, EOFError):
-                            print("\n\nOperation cancelled by user")
-                            return 1
+                            console.print("\n[yellow]Operation cancelled by user[/yellow]")
                 
                 selected_ipo = ipos[choice_idx]
-                print(f"\n✓ Selected: {selected_ipo['text']}")
+                console.print(f"\n[green]✓[/green] Selected: [cyan]{selected_ipo['text']}[/cyan]")
                 
                 # SMART SELECTION: Only interact with dropdown if NOT choosing the already-selected default
                 if selected_ipo.get('isDefault'):
-                    print("  (Using default selection, no dropdown interaction needed)")
+                    console.print("  [dim](Using default selection, no dropdown interaction needed)[/dim]")
                 else:
-                    print(f"  (Changing selection to option {choice_idx + 1}...)")
+                    console.print(f"  [yellow](Changing selection to option {choice_idx + 1}...)[/yellow]")
                     # Use the actual DOM index from selected_ipo, not the filtered choice_idx
                     actual_dom_index = selected_ipo['index']
-                    print(f"  [DEBUG] Clicking DOM index {actual_dom_index}")
+                    if args.debug:
+                        console.print(f"  [dim][DEBUG] Clicking DOM index {actual_dom_index}[/dim]")
                     if not checker.select_ipo(actual_dom_index):
-                        print("❌ Failed to select IPO")
+                        console.print("[red]❌ Failed to select IPO[/red]")
                         return 1
                     time.sleep(2)
-                    print("  ✓ IPO selection completed")
+                    console.print("  [green]✓ IPO selection completed[/green]")
             
             # Check results for all BOIDs
-            print(f"\nChecking results for {len(boids)} BOID(s)...")
+            console.print(f"\n[bold]Checking results for [cyan]{len(boids)}[/cyan] BOID(s)...[/bold]")
             results = checker.check_multiple_boids(boids, selected_ipo['text'])
             
             # Display results in table
@@ -997,40 +1006,49 @@ def main():
             not_allotted = sum(1 for r in results if r.get('status') == 'Not Allotted')
             errors = sum(1 for r in results if r.get('status') == 'Error')
             
-            print(f"Summary: {allotted} allotted, {not_allotted} not allotted, {errors} errors")
+            # Summary with colors
+            summary_parts = []
+            if allotted > 0:
+                summary_parts.append(f"[green]{allotted} allotted[/green]")
+            if not_allotted > 0:
+                summary_parts.append(f"[red]{not_allotted} not allotted[/red]")
+            if errors > 0:
+                summary_parts.append(f"[yellow]{errors} errors[/yellow]")
+            
+            console.print(f"\n[bold]Summary:[/bold] {', '.join(summary_parts)}")
             
             # Ask if user wants to check another IPO
-            print("\n" + "="*70)
+            console.print()
             try:
-                continue_choice = input("Would you like to check the result again? (y/N): ").strip()
+                continue_choice = console.input("[bold]Would you like to check the result again? (y/N):[/bold] ").strip()
                 
                 if continue_choice.lower() == 'y':
-                    print("\n🔄 Reloading page...\n")
+                    console.print("\n[cyan]🔄 Reloading page...[/cyan]\n")
                     time.sleep(2)
                     continue  # Restart the loop
                 else:
-                    print("\n✅ Exiting...")
+                    console.print("\n[green]✅ Exiting...[/green]")
                     return 0
                     
             except (KeyboardInterrupt, EOFError):
-                print("\n\n✅ Exiting...")
+                console.print("\n[green]✅ Exiting...[/green]")
                 return 0
     
     except KeyboardInterrupt:
-        print("\n\nOperation cancelled by user")
+        console.print("\n[yellow]Operation cancelled by user[/yellow]")
         return 1
     
     except Exception as e:
-        print(f"\n❌ Fatal error: {e}")
+        console.print(f"\n[red]❌ Fatal error:[/red] {e}")
         if args.debug:
             import traceback
             traceback.print_exc()
         return 1
     
     finally:
-        print("\nClosing browser...")
+        console.print("\n[dim]Closing browser...[/dim]")
         checker.close()
-        print("✓ Done\n")
+        console.print("[green]✓ Done[/green]\n")
 
 
 if __name__ == "__main__":

@@ -22,6 +22,19 @@ Fully automated IPO result checker for MeroShare (iporesult.cdsc.com.np) with cu
 - **Virtual environment** at `/Users/namit/Documents/Projects/MMP/automations/.venv`
 - **Pre-trained model** - See "Getting the Model" below
 
+### Installation
+
+**Install dependencies:**
+```bash
+cd "/Users/namit/Documents/Projects/MMP/automations/IPO Result"
+uv pip install -r requirements.txt
+```
+
+Or if using standard pip:
+```bash
+pip install -r requirements.txt
+```
+
 ### Getting the Model
 
 The trained model files (`.h5`) are **NOT** in git (90MB is too large). You have two options:

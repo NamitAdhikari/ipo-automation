@@ -1,0 +1,20 @@
+# Core dependencies for IPO Result Checker
+# Python 3.8+
+
+# Web automation
+selenium==4.16.0
+
+# Machine Learning / CNN Model
+tensorflow==2.20.0
+keras==3.13.2
+numpy==2.4.2
+opencv-python==4.13.0.92
+
+# CLI & UI
+rich==14.3.2
+python-dotenv==1.2.1
+
+# Training & Data Collection (optional - only needed for retraining)
+Pillow==12.1.1
+scikit-learn==1.8.0
+tqdm==4.67.3
