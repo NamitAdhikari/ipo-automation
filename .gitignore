@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+
+# Captcha Model Files (90MB - too large for git)
+captcha_model/*.h5
+captcha_model/*.keras
+captcha_model/checkpoint/
+
+# Keep model config files
+!captcha_model/*.json
+
+# Captcha Datasets
+# Keep original and live datasets (needed for retraining)
+# Only ignore augmented dataset (regenerable from originals)
+captcha_dataset_augmented/
+
+# Temporary files
+temp_captcha_*.png
+captcha_*.png
+*_full.png
+*.tmp
+
+# Debug output
+/tmp/captcha_*.png
+debug_*.png
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Screenshots (generated during testing)
+screenshot_*.png
+full_page_*.png
