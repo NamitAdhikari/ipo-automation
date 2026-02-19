@@ -63,10 +63,10 @@ Edit the `.env` file in the project root:
 
 ```bash
 # Single BOID
-BOID=1301260001246310
+BOID=xxxxxxxxxxxxxx
 
 # Multiple BOIDs (comma-separated)
-BOID=1301260001246310,1301260001246311
+BOID=xxxxxxxxxxxxxx,yyyyyyyyyyyyyyy
 ```
 
 ### Step 2: Run the Script
@@ -83,7 +83,7 @@ uv run python ipo_fully_auto_enhanced.py
 
 Check a specific BOID (overrides .env):
 ```bash
-uv run python ipo_fully_auto_enhanced.py --boid 1301260001246310
+uv run python ipo_fully_auto_enhanced.py --boid xxxxxxxxxxxxxx
 ```
 
 **Option C: Auto Mode (Non-Interactive)**
@@ -112,7 +112,7 @@ uv run python ipo_fully_auto_enhanced.py --headless
 **Combine options:**
 ```bash
 # Single BOID + auto-select (without headless - more reliable)
-uv run python ipo_fully_auto_enhanced.py --boid 1301260001246310 --auto
+uv run python ipo_fully_auto_enhanced.py --boid xxxxxxxxxxxxxx --auto
 ```
 
 ### Step 3: Interpret Results
@@ -123,8 +123,8 @@ The script will display a formatted table:
 ╔════════════════════╦════════════════════════════╦════════════════╗
 ║ BOID               ║ IPO                        ║ Status         ║
 ╠════════════════════╬════════════════════════════╬════════════════╣
-║ 1301260001246310   ║ Suryakunda Hydro Electric  ║ Allotted: 10   ║
-║ 1301260001246311   ║ Suryakunda Hydro Electric  ║ Not Allotted   ║
+║ xxxxxxxxxxxxxx   ║ Suryakunda Hydro Electric  ║ Allotted: 10   ║
+║ yyyyyyyyyyyyyyy   ║ Suryakunda Hydro Electric  ║ Not Allotted   ║
 ╚════════════════════╩════════════════════════════╩════════════════╝
 ```
 
@@ -370,10 +370,10 @@ uv run python generate_augmented_dataset.py --source captcha_dataset captcha_dat
 uv run python ipo_fully_auto_enhanced.py
 
 # Check single BOID
-uv run python ipo_fully_auto_enhanced.py --boid 1301260001246310
+uv run python ipo_fully_auto_enhanced.py --boid xxxxxxxxxxxxxx
 
 # Check multiple BOIDs (override .env)
-uv run python ipo_fully_auto_enhanced.py --boid 1301260001246310,1301260001246311
+uv run python ipo_fully_auto_enhanced.py --boid xxxxxxxxxxxxxx,yyyyyyyyyyyyyyy
 
 # Auto-select first IPO + headless
 uv run python ipo_fully_auto_enhanced.py --auto --headless
@@ -403,10 +403,10 @@ uv run python test_live_quick.py 10 --debug
 **.env** - Your BOID configuration
 ```bash
 # Single BOID
-BOID=1301260001246310
+BOID=xxxxxxxxxxxxxx
 
 # Multiple BOIDs (comma-separated, no spaces)
-BOID=1301260001246310,1301260001246311
+BOID=xxxxxxxxxxxxxx,yyyyyyyyyyyyyyy
 ```
 
 **captcha_model/config_v2.json** - Model architecture
