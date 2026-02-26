@@ -47,12 +47,18 @@ class EnhancedIPOChecker:
     MAX_CAPTCHA_RETRIES = 3  # Retry captcha solve 3 times
     MAX_REJECTION_RETRIES = 3  # Restart browser 3 times on rejection
     
-    def __init__(self, debug: bool = False, headless: bool = False):
+    def __init__(self, debug: bool = False, headless: bool = False, save_captchas: bool = True):
         self.debug = debug
         self.headless = headless
+        self.save_captchas = save_captchas
         self.driver = None
         self.captcha_solver = None
         self.rejection_count = 0
+        self.saved_captchas_count = 0  # Track how many captchas we've saved
+        
+        # Create captcha dataset directory if saving is enabled
+        if self.save_captchas:
+            os.makedirs("captcha_dataset_live", exist_ok=True)
         
         # Initialize CNN captcha solver
         try:
@@ -101,6 +107,27 @@ class EnhancedIPOChecker:
             except:
                 pass
             self.driver = None
+    
+    def _save_captcha_image(self, captcha_text: str, captcha_image: np.ndarray) -> bool:
+        """Save successfully validated captcha to dataset."""
+        if not self.save_captchas or captcha_image is None:
+            return False
+        
+        try:
+            dataset_dir = "captcha_dataset_live"
+            os.makedirs(dataset_dir, exist_ok=True)
+            
+            timestamp = int(time.time() * 1000)
+            filename = f"{captcha_text}_{timestamp}.png"
+            filepath = os.path.join(dataset_dir, filename)
+            
+            cv2.imwrite(filepath, captcha_image)
+            self.saved_captchas_count += 1
+            self._log(f"💾 Saved captcha: {filename}")
+            return True
+        except Exception as e:
+            self._log(f"⚠️ Failed to save captcha: {e}")
+            return False
     
     def diagnose_bot_detection(self) -> dict:
         """
@@ -408,7 +435,8 @@ class EnhancedIPOChecker:
             
             return {
                 'result': result,
-                'confidence': confidence
+                'confidence': confidence,
+                'image': img  # Include the raw captcha image for saving later
             }
             
         except Exception as e:
@@ -479,8 +507,8 @@ class EnhancedIPOChecker:
             self._log(f"Error checking rejection: {e}")
             return False
     
-    def solve_captcha_with_retry(self, max_retries: int = None) -> Optional[str]:
-        """Solve captcha with retry logic."""
+    def solve_captcha_with_retry(self, max_retries: int = None) -> Tuple[Optional[str], Optional[np.ndarray]]:
+        """Solve captcha with retry logic. Returns (captcha_text, captcha_image)."""
         if max_retries is None:
             max_retries = self.MAX_CAPTCHA_RETRIES
         
@@ -488,7 +516,7 @@ class EnhancedIPOChecker:
             # Check for rejection before attempting
             if self.check_for_rejection():
                 self._log("⚠️  Request rejected detected during captcha solve")
-                return None
+                return None, None
             
             self._log(f"Attempting to solve captcha (attempt {retry + 1}/{max_retries})...")
             prediction = self.solve_captcha_cnn()
@@ -499,21 +527,22 @@ class EnhancedIPOChecker:
                 # Check if failure was due to rejection
                 if self.check_for_rejection():
                     self._log("⚠️  Captcha solve failed due to request rejection")
-                    return None
+                    return None, None
                 
                 if retry < max_retries - 1:
                     self._log("Refreshing captcha and retrying...")
                     if self.refresh_captcha():
                         time.sleep(1)
                         continue
-                return None
+                return None, None
             
             result = prediction['result']
             confidence = prediction['confidence']
+            image = prediction['image']
             
             if confidence >= self.CONFIDENCE_THRESHOLD:
                 self._log(f"✓ High confidence: {result} ({confidence:.4f})")
-                return result
+                return result, image
             else:
                 self._log(f"⚠ Low confidence: {result} ({confidence:.4f})")
                 if retry < max_retries - 1:
@@ -523,13 +552,18 @@ class EnhancedIPOChecker:
                         continue
                 # Use low confidence prediction on last attempt
                 self._log("Using low confidence prediction on last attempt")
-                return result
+                return result, image
         
-        return None
+        return None, None
     
-    def submit_captcha(self, boid: str, captcha_text: str) -> Tuple[bool, str]:
+    def submit_captcha(self, boid: str, captcha_text: str, captcha_image: Optional[np.ndarray] = None) -> Tuple[bool, str]:
         """
         Submit form with BOID and captcha.
+        
+        Args:
+            boid: BOID number
+            captcha_text: Predicted captcha text
+            captcha_image: Optional numpy array of captcha image (for saving on success)
         
         Returns:
             (success, status) where status is:
@@ -586,6 +620,11 @@ class EnhancedIPOChecker:
             success_indicators = ['allotted', 'alloted', 'congratulation', 'sorry', 'applicant details']
             if any(indicator in page_text for indicator in success_indicators):
                 self._log(f"✓ Captcha '{captcha_text}' accepted! Got result page")
+                
+                # Save the captcha image to dataset (non-blocking, happens after success confirmed)
+                if captcha_image is not None:
+                    self._save_captcha_image(captcha_text, captcha_image)
+                
                 return True, "success"
             
             # Check for explicit captcha error messages (only check if no success indicators)
@@ -683,7 +722,7 @@ class EnhancedIPOChecker:
                     time.sleep(2)
                 
                 # Solve captcha
-                captcha_text = self.solve_captcha_with_retry()
+                captcha_text, captcha_image = self.solve_captcha_with_retry()
                 
                 if not captcha_text:
                     self._log("Failed to solve captcha")
@@ -706,7 +745,7 @@ class EnhancedIPOChecker:
                     continue
                 
                 # Submit
-                success, status = self.submit_captcha(boid, captcha_text)
+                success, status = self.submit_captcha(boid, captcha_text, captcha_image)
                 
                 if status == "rejected":
                     return {
@@ -877,6 +916,7 @@ def main():
     parser.add_argument('--debug', action='store_true', help='Enable debug output')
     parser.add_argument('--headless', action='store_true', help='Run in headless mode')
     parser.add_argument('--auto', action='store_true', help='Auto-select first IPO (non-interactive)')
+    parser.add_argument('--no-save-captcha', action='store_true', help='Disable automatic captcha dataset collection')
     
     args = parser.parse_args()
     
@@ -905,7 +945,11 @@ def main():
         console.print(f"[green]✓[/green] Loaded [cyan]{len(boids)}[/cyan] BOID(s) from .env file")
     
     # Initialize checker
-    checker = EnhancedIPOChecker(debug=args.debug, headless=args.headless)
+    checker = EnhancedIPOChecker(
+        debug=args.debug, 
+        headless=args.headless,
+        save_captchas=not args.no_save_captcha
+    )
     
     try:
         # Start browser
@@ -1047,6 +1091,11 @@ def main():
     
     finally:
         console.print("\n[dim]Closing browser...[/dim]")
+        
+        # Show captcha save summary
+        if checker.save_captchas and checker.saved_captchas_count > 0:
+            console.print(f"[green]💾 Saved {checker.saved_captchas_count} captcha(s) to training dataset[/green]")
+        
         checker.close()
         console.print("[green]✓ Done[/green]\n")
 
