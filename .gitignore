@@ -38,6 +38,9 @@ captcha_model/checkpoint/
 # Only ignore augmented dataset (regenerable from originals)
 captcha_dataset_augmented/
 
+# Failed captchas for manual labeling (not committed)
+captcha_dataset_failed/
+
 # Temporary files
 temp_captcha_*.png
 captcha_*.png
