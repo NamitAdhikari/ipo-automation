@@ -83,7 +83,8 @@ class EnhancedIPOChecker:
                 pass
             self.driver = None
         
-        print("Initializing browser..." if not self.driver else "Restarting browser...")
+        if self.debug:
+            print("Initializing browser..." if not self.driver else "Restarting browser...")
         chrome_options = ChromeOptions()
         
         # CRITICAL: Match ipo_fully_auto.py exactly (minimal stealth that works)
@@ -98,7 +99,8 @@ class EnhancedIPOChecker:
         self.driver = webdriver.Chrome(options=chrome_options)
         self.driver.maximize_window()
         
-        print("✓ Browser ready")
+        if self.debug:
+            print("✓ Browser ready")
     
     def close(self):
         """Close the browser."""
@@ -154,7 +156,8 @@ class EnhancedIPOChecker:
             ipo_text = self.selected_ipo.get('text', 'Unknown')
             
             self._log(f"Re-selecting IPO: {ipo_text[:60]}... (index: {ipo_index})")
-            console.print(f"[dim]Re-selecting IPO after page reload...[/dim]")
+            if self.debug:
+                console.print(f"[dim]Re-selecting IPO after page reload...[/dim]")
             
             # CRITICAL: Call get_available_ipos() first to initialize the dropdown properly
             # This is what the first flow does, and it's essential for Angular to set up the dropdown
@@ -187,7 +190,8 @@ class EnhancedIPOChecker:
             
             if success:
                 self._log(f"✓ Successfully re-selected IPO")
-                console.print(f"[green]✓ IPO re-selected successfully[/green]")
+                if self.debug:
+                    console.print(f"[green]✓ IPO re-selected successfully[/green]")
             else:
                 self._log(f"✗ Failed to re-select IPO")
                 console.print(f"[red]✗ Failed to re-select IPO[/red]")
@@ -383,7 +387,8 @@ class EnhancedIPOChecker:
         """Select an IPO by index."""
         try:
             self._log(f"Selecting IPO at DOM index {index}...")
-            console.print(f"    [dim]Opening dropdown...[/dim]")
+            if self.debug:
+                console.print(f"    [dim]Opening dropdown...[/dim]")
             
             # First, unhide any hidden dropdown panels from previous close
             self.driver.execute_script("""
@@ -433,7 +438,8 @@ class EnhancedIPOChecker:
                 console.print(f"    [yellow]⚠️  Dropdown options not loaded[/yellow]")
                 return False
             
-            console.print(f"    [dim]Clicking option at DOM index {index}...[/dim]")
+            if self.debug:
+                console.print(f"    [dim]Clicking option at DOM index {index}...[/dim]")
             
             # Click the option
             clicked = self.driver.execute_script("""
@@ -459,7 +465,8 @@ class EnhancedIPOChecker:
             
             # Wait for selection to register
             time.sleep(1)
-            console.print(f"    [dim]Closing dropdown...[/dim]")
+            if self.debug:
+                console.print(f"    [dim]Closing dropdown...[/dim]")
             
             # Close the dropdown panel by hiding it (not removing)
             self.driver.execute_script("""
@@ -703,7 +710,8 @@ class EnhancedIPOChecker:
             # CRITICAL: Check for rejection FIRST (highest priority)
             if self.check_for_rejection():
                 self._log("⚠️  Rejection detected AFTER submit - request was blocked!")
-                print(f"⚠️  Captcha '{captcha_text}' submitted but REQUEST WAS REJECTED by server")
+                if self.debug:
+                    console.print(f"[yellow]⚠️  Captcha '{captcha_text}' submitted but REQUEST WAS REJECTED by server[/yellow]")
                 return False, "rejected"
             
             page_text = self.driver.page_source.lower()
@@ -926,8 +934,9 @@ class EnhancedIPOChecker:
                     console.print("[dim]Please wait 15-30 minutes before trying again.[/dim]")
                     break
                 
-                console.print(f"\n[yellow]⚠️  Request rejected (retry {self.rejection_count}/{self.MAX_REJECTION_RETRIES})[/yellow]")
-                console.print("[dim]Restarting browser and retrying...[/dim]")
+                console.print(f"\n[yellow]⚠️  Request rejected, restarting browser (retry {self.rejection_count}/{self.MAX_REJECTION_RETRIES})[/yellow]")
+                if self.debug:
+                    console.print("[dim]Restarting browser and retrying...[/dim]")
                 
                 # Restart browser
                 self.close()
