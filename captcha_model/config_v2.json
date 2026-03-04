@@ -4,7 +4,7 @@
   "num_digits": 5,
   "num_classes": 9,
   "model_version": "v2",
-  "training_date": "2026-02-18 16:42:39",
+  "training_date": "2026-02-26 20:17:40",
   "dataset_size": 4900,
   "augmentation": "pre-applied (14x)",
   "architecture": "simplified (128->64 dense layers)"
