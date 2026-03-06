@@ -72,3 +72,5 @@ htmlcov/
 # Screenshots (generated during testing)
 screenshot_*.png
 full_page_*.png
+
+.zed

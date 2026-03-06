@@ -1,5 +1,6 @@
 import atexit
 import os
+import signal
 import time
 from typing import TYPE_CHECKING
 
@@ -51,6 +52,7 @@ MEROSHARE_PASSWORD = os.getenv("MEROSHARE_PASSWORD")
 MEROSHARE_DP = os.getenv("MEROSHARE_DP")
 MEROSHARE_CRN = os.getenv("MEROSHARE_CRN")
 MEROSHARE_PIN = os.getenv("MEROSHARE_PIN")
+HEADLESS_MODE = os.getenv("HEADLESS", "false").lower() == "true"
 
 if not (
     MEROSHARE_USERNAME
@@ -79,8 +81,12 @@ if not (
 console.print("[dim]✓ Credentials loaded successfully[/dim]")
 
 console.print("[dim]✓ Initializing browser...[/dim]")
+
 chrome_options = ChromeOptions()
-driver: "WebDriverChrome" = Chrome(options=chrome_options)  # type: ignore
+if HEADLESS_MODE:
+    chrome_options.add_argument("--headless=new")
+
+driver: "WebDriverChrome" = Chrome(options=chrome_options, headless=HEADLESS_MODE)  # type: ignore
 driver.maximize_window()
 
 atexit.register(lambda: driver.quit())
@@ -467,6 +473,20 @@ def apply_ipo(company: "WebElement"):
     return True
 
 
+def get_input():
+    def _raise(signum, frame):
+        raise Exception("Input timeout")
+
+    signal.signal(signal.SIGALRM, _raise)
+    signal.alarm(4)  # Set timeout to 4 seconds
+    try:
+        return input().strip().lower()
+    except Exception:
+        return "n"
+    finally:
+        signal.alarm(0)  # Disable the alarm
+
+
 # Main application loop
 applied = 0
 while True:
@@ -496,7 +516,7 @@ while True:
             "  [yellow]Continue to the next company? (y/N):[/yellow] ",
             end="",
         )
-        choice = input().strip().lower()
+        choice = get_input()
         if choice != "y":
             console.print()
             console.print("[yellow]👋 Stopping as requested[/yellow]")
@@ -504,28 +524,16 @@ while True:
             break
 
     success = apply_ipo(company)
-    if success:
-        applied += 1
-        console.print(
-            Panel(
-                f"[bold green]✅ Application #{applied} Complete![/bold green]",
-                style="bold green",
-            )
+    if not success:
+        break
+
+    applied += 1
+    console.print(
+        Panel(
+            f"[bold green]✅ Application #{applied} Complete![/bold green]",
+            style="bold green",
         )
-    else:
-        console.print()
-        console.print("[bold red]❌ Failed to complete this application[/bold red]")
-        console.print()
-        console.print(
-            "  [yellow]Continue to next company? (y/N):[/yellow] ",
-            end="",
-        )
-        user_choice = input().strip().lower()
-        if user_choice != "y":
-            console.print()
-            console.print("[yellow]👋 Stopping as requested[/yellow]")
-            console.print()
-            break
+    )
     navigate_to_asba()
 
 print_section("SUMMARY", "📊")
