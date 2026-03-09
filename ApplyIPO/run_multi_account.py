@@ -12,8 +12,21 @@ import time
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 console = Console()
+
+
+def print_header():
+    """Print a nice header for the application"""
+    header = Text()
+    header.append("🚀 ", style="bold yellow")
+    header.append("Meroshare IPO Auto-Apply Bot", style="bold cyan")
+    header.append(" 🚀", style="bold yellow")
+
+    console.print()
+    console.print(Panel(header, style="bold blue", padding=(1, 2)))
+    console.print()
 
 
 def load_accounts(config_file="accounts.json"):
@@ -167,20 +180,11 @@ def main():
         console.print()
         sys.exit(1)
 
-    # Confirm before starting
     console.print()
-    response = (
-        input(
-            f"  [bold yellow]Run {len(enabled_accounts)} account(s)? (y/n):[/bold yellow] "
-        )
-        .strip()
-        .lower()
+    console.print(
+        "[bold green]🚀 Starting IPO applications for enabled accounts...[/bold green]"
     )
-    if response != "y":
-        console.print()
-        console.print("[yellow]👋 Cancelled by user[/yellow]")
-        console.print()
-        sys.exit(0)
+    console.print()
 
     # Run each enabled account
     results = []
@@ -212,9 +216,9 @@ def main():
 
     # Print final summary
     console.print()
-    console.print("[bold magenta]{'═' * 60}[/bold magenta]")
+    console.print(f"[bold magenta]{'═' * 60}[/bold magenta]")
     console.print("[bold yellow]📊 FINAL SUMMARY[/bold yellow]")
-    console.print("[bold magenta]{'═' * 60}[/bold magenta]")
+    console.print(f"[bold magenta]{'═' * 60}[/bold magenta]")
     console.print()
 
     summary_table = Table(show_header=True, header_style="bold magenta")

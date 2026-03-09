@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.panel import Panel
-from rich.text import Text
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -24,18 +23,6 @@ load_dotenv()
 console = Console()
 
 
-def print_header():
-    """Print a nice header for the application"""
-    header = Text()
-    header.append("🚀 ", style="bold yellow")
-    header.append("Meroshare IPO Auto-Apply Bot", style="bold cyan")
-    header.append(" 🚀", style="bold yellow")
-
-    console.print()
-    console.print(Panel(header, style="bold blue", padding=(1, 2)))
-    console.print()
-
-
 def print_section(title: str, emoji: str = "📌"):
     """Print a section separator"""
     console.print()
@@ -44,8 +31,6 @@ def print_section(title: str, emoji: str = "📌"):
     console.print(f"[bold magenta]{'─' * 60}[/bold magenta]")
     console.print()
 
-
-print_header()
 
 MEROSHARE_USERNAME = os.getenv("MEROSHARE_USERNAME")
 MEROSHARE_PASSWORD = os.getenv("MEROSHARE_PASSWORD")
@@ -78,15 +63,13 @@ if not (
     console.print()
     exit(1)
 
-console.print("[dim]✓ Credentials loaded successfully[/dim]")
-
 console.print("[dim]✓ Initializing browser...[/dim]")
 
 chrome_options = ChromeOptions()
 if HEADLESS_MODE:
     chrome_options.add_argument("--headless=new")
 
-driver: "WebDriverChrome" = Chrome(options=chrome_options, headless=HEADLESS_MODE)  # type: ignore
+driver: "WebDriverChrome" = Chrome(options=chrome_options)
 driver.maximize_window()
 
 atexit.register(lambda: driver.quit())
@@ -95,11 +78,8 @@ wait = WebDriverWait(driver, 5)
 
 print_section("LOGIN PROCESS", "🔐")
 
-console.print("[cyan]→[/cyan] Opening Meroshare website...")
 driver.get("https://meroshare.cdsc.com.np")
-console.print("[green]✓[/green] Website loaded\n")
 
-console.print("[cyan]→[/cyan] Opening DP selector...")
 selector = wait.until(EC.presence_of_element_located((By.ID, "selectBranch")))
 selector.click()
 
@@ -120,17 +100,22 @@ search_results = wait.until(
 eligible_options = search_results.find_elements(
     By.CSS_SELECTOR, ".select2-results__option"
 )
+show_options = False
+if len(eligible_options) > 1:
+    show_options = True
 
 eligible_dps = {}
-console.print("[bold green]📋 Available DPs:[/bold green]\n")
+if show_options:
+    console.print("[bold green]📋 Available DPs:[/bold green]\n")
 
 for idx, li_elem in enumerate(eligible_options, start=1):
     eligible_dps[idx] = li_elem
-    console.print(
-        f"  [bold cyan]{idx}.[/bold cyan] [white]{li_elem.text.strip()}[/white]"
-    )
-
-console.print()
+    if show_options:
+        console.print(
+            f"  [bold cyan]{idx}.[/bold cyan] [white]{li_elem.text.strip()}[/white]"
+        )
+if show_options:
+    console.print()
 
 if not eligible_dps:
     console.print()
@@ -166,15 +151,12 @@ else:
 # Click somewhere else to close the dropdown
 wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".copyright"))).click()
 
-console.print("[cyan]→[/cyan] Filling credentials...")
 username_input = wait.until(EC.presence_of_element_located((By.ID, "username")))
 username_input.send_keys(MEROSHARE_USERNAME)
 
 password_input = wait.until(EC.presence_of_element_located((By.ID, "password")))
 password_input.send_keys(MEROSHARE_PASSWORD)
-console.print("[green]✓[/green] Credentials entered\n")
 
-console.print("[cyan]→[/cyan] Logging in...")
 login_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".sign-in")))
 login_button.click()
 
@@ -192,8 +174,6 @@ except TimeoutException:
 
 print_section("IPO APPLICATION", "📝")
 
-console.print("[cyan]→[/cyan] Navigating to ASBA application page...")
-
 
 def navigate_to_asba():
     asba_menu = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".msi-asba")))
@@ -201,7 +181,6 @@ def navigate_to_asba():
 
 
 navigate_to_asba()
-console.print("[green]✓[/green] ASBA page loaded\n")
 
 
 def fetch_companies():
@@ -211,11 +190,26 @@ def fetch_companies():
     filtered_companies = []
     for company in companies:
         try:
+            company_detail = company.find_element(By.CSS_SELECTOR, ".company-name")
+            spans = company_detail.find_elements(By.TAG_NAME, "span")
+
+            company_name, *_, share_type, share_group = [
+                span.text.strip() for span in spans
+            ]
+            if share_group.lower() != "ordinary shares":
+                console.print(
+                    f"[yellow]⚠ Skipping {company_name} - Unsupported share type: {share_group}[/yellow]"
+                )
+                console.print()
+                continue
+
             available_action = company.find_element(
                 By.CSS_SELECTOR, ".action-buttons"
             ).text
             if "Apply" in available_action:
-                filtered_companies.append(company)
+                filtered_companies.append(
+                    (company, company_name, share_type, share_group)
+                )
         except Exception as e:
             console.print(f"[red]Error processing a company element: {e}[/red]")
     return filtered_companies
@@ -225,8 +219,6 @@ def find_min_kitta_smart(section_blocks: list) -> str | None:
     """
     Find minimum kitta by searching for "Minimum Quantity" in the entire column text.
     """
-    console.print("[dim]  → Searching for minimum quantity...[/dim]")
-
     # Search for column containing "Minimum Quantity" text
     for section in section_blocks:
         try:
@@ -305,12 +297,9 @@ def find_min_kitta_smart(section_blocks: list) -> str | None:
     return None
 
 
-def apply_ipo(company: "WebElement"):
-    company_detail = company.find_element(By.CSS_SELECTOR, ".company-name")
-    spans = company_detail.find_elements(By.TAG_NAME, "span")
-
-    company_name, *_, share_type, share_group = [span.text.strip() for span in spans]
-
+def apply_ipo(
+    company: "WebElement", company_name: str, share_type: str, share_group: str
+):
     console.print()
     console.print(
         Panel(
@@ -376,7 +365,10 @@ def apply_ipo(company: "WebElement"):
         EC.presence_of_element_located((By.ID, "accountNumber"))
     )
     # API Call happens here, so introduce a wait to ensure options are loaded
-    time.sleep(1)
+    wait.until(
+        lambda driver: len(account_number_select.find_elements(By.TAG_NAME, "option"))
+        > 1
+    )
     account_number_options = account_number_select.find_elements(By.TAG_NAME, "option")
 
     # Filter out placeholder
@@ -523,7 +515,7 @@ while True:
             console.print()
             break
 
-    success = apply_ipo(company)
+    success = apply_ipo(*company)
     if not success:
         break
 

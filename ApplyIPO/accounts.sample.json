@@ -1,0 +1,31 @@
+{
+  "accounts": [
+    {
+      "name": "X's Account",
+      "enabled": true,
+      "credentials": {
+        "username": "xxxxxxxx",
+        "password": "yyyyyyyy",
+        "dp": "13700",
+        "crn": "xxxxxxxx",
+        "pin": "aaaa"
+      }
+    },
+    {
+      "name": "Y's Account",
+      "enabled": true,
+      "credentials": {
+        "username": "xxxxxxxx",
+        "password": "yyyyyyyy",
+        "dp": "12600",
+        "crn": "xxxxxx",
+        "pin": "bbbb"
+      }
+    }
+  ],
+  "settings": {
+    "headless": false,
+    "wait_between_accounts_seconds": 5,
+    "continue_on_account_failure": true
+  }
+}
