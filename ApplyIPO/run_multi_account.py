@@ -125,8 +125,12 @@ def run_account(account, account_num, total_accounts, settings=None):
     try:
         result = subprocess.run(
             [sys.executable, "main_improved.py"],
-            env={**subprocess.os.environ, **env},
-            capture_output=False,
+            env={
+                **subprocess.os.environ,
+                **env,
+                "FORCE_COLOR": "1",  # Force color output
+                "PYTHONUNBUFFERED": "1",  # Unbuffered output
+            },
             text=True,
         )
 
@@ -139,9 +143,7 @@ def run_account(account, account_num, total_accounts, settings=None):
             return True
         else:
             console.print()
-            console.print(
-                f"[bold red]❌ Account {account_num} failed with code {result.returncode}[/bold red]"
-            )
+            console.print(f"[bold red]❌ Account {account_num} failed[/bold red]")
             console.print()
             return False
     except Exception as e:

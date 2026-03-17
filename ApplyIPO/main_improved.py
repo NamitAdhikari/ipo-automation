@@ -122,7 +122,7 @@ if not eligible_dps:
     console.print(f"[red]❌ Error: No eligible DP found for '{MEROSHARE_DP}'[/red]")
     console.print("[yellow]💡 Hint: Check your MEROSHARE_DP in .env file[/yellow]")
     console.print()
-    exit(1)
+    exit(1) 
 
 if len(eligible_dps) > 1:
     console.print(
