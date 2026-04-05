@@ -40,8 +40,7 @@ This automation bot:
    ```
 
 3. **Configure your accounts**
-   
-   Create an `accounts.json` file based on `accounts.sample.json`:
+   `accounts.json` is used for running on multiple accounts. `.env` file is only used for running on single account. Since, this is primarily focused on running on multiple accounts, ignoring setting up `.env`. Create an `accounts.json` file based on `accounts.sample.json`:
    ```bash
    cp accounts.sample.json accounts.json
    ```
