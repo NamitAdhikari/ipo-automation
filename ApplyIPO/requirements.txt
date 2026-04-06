@@ -18,7 +18,7 @@ pexpect==4.9.0
 prompt-toolkit==3.0.52
 ptyprocess==0.7.0
 pure-eval==0.2.3
-pygments==2.19.2
+pygments==2.20.0
 pysocks==1.7.1
 python-dotenv==1.2.2
 rich==14.3.3
