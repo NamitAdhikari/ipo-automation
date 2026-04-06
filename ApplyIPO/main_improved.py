@@ -206,7 +206,7 @@ def fetch_companies():
             available_action = company.find_element(
                 By.CSS_SELECTOR, ".action-buttons"
             ).text
-            if "Apply" in available_action:
+            if "Apply" in available_action or "Reapply" in available_action:
                 filtered_companies.append(
                     (company, company_name, share_type, share_group)
                 )
