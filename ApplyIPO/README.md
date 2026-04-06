@@ -33,9 +33,9 @@ This automation bot:
 
 1. **Clone or download this project**
 
-2. **Install Python dependencies**
+2. **Install Python (3.12+) dependencies**
    ```bash
-   uv venv
+   uv venv -p 3.12
    uv pip install -r requirements.txt
    ```
 
@@ -93,6 +93,11 @@ Run IPO applications for all enabled accounts:
 
 ```bash
 python run_multi_account.py
+```
+
+OR with `uv`:
+```bash
+uv run run_multi_account.py
 ```
 
 This will:
