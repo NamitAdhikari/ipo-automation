@@ -6,7 +6,7 @@ selenium==4.16.0
 
 # Machine Learning / CNN Model
 tensorflow==2.20.0
-keras==3.13.2
+keras==3.14.0
 numpy==2.4.4
 opencv-python==4.13.0.92
 
