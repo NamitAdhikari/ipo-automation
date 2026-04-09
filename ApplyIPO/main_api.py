@@ -83,19 +83,39 @@ atexit.register(lambda: applicator.close())
 
 
 def get_input_with_timeout(timeout: int = 4) -> str:
-    """Get user input with a timeout."""
+    """Get user input with a timeout. Cross-platform compatible."""
+    import platform
+    import sys
+    import threading
 
-    def _raise(signum, frame):
-        raise TimeoutError("Input timeout")
+    result = ["n"]  # Default value
 
-    signal.signal(signal.SIGALRM, _raise)
-    signal.alarm(timeout)
-    try:
-        return input().strip().lower()
-    except (TimeoutError, Exception):
-        return "n"
-    finally:
-        signal.alarm(0)
+    def read_input():
+        try:
+            user_input = input().strip().lower()
+            result[0] = user_input
+        except EOFError:
+            pass  # Handle piped input gracefully
+
+    if platform.system() == "Windows":
+        # Windows: Use threading-based timeout
+        input_thread = threading.Thread(target=read_input, daemon=True)
+        input_thread.start()
+        input_thread.join(timeout=timeout)
+        return result[0]
+    else:
+        # Unix/Linux/Mac: Use signal-based timeout
+        def _raise(signum, frame):
+            raise TimeoutError("Input timeout")
+
+        signal.signal(signal.SIGALRM, _raise)
+        signal.alarm(timeout)
+        try:
+            return input().strip().lower()
+        except (TimeoutError, Exception):
+            return "n"
+        finally:
+            signal.alarm(0)
 
 
 def select_dp(eligible_dps: list[Capital]) -> Capital:
