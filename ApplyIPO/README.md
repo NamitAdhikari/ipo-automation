@@ -27,7 +27,7 @@ This automation bot:
 
 ### Prerequisites
 
-- Python 3.10 or higher
+- Python 3.10 or higher (required for modern type hint syntax)
 - Valid Meroshare account credentials
 
 ### Installation
