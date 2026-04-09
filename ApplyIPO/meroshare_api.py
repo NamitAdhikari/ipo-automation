@@ -150,17 +150,31 @@ class MeroshareClient:
         headers = self._get_headers()
         headers["Authorization"] = "null"
 
-        response = self._client.get(f"{MS_API_BASE}/meroShare/capital/", headers=headers)
+        try:
+            response = self._client.get(f"{MS_API_BASE}/meroShare/capital/", headers=headers)
+        except httpx.RequestError as e:
+            raise MeroshareAPIError(f"Network error fetching capitals: {e}")
 
         if response.status_code != 200:
+            # Check for WAF blocking
+            if "URL was rejected" in response.text or "support ID" in response.text.lower():
+                raise MeroshareAPIError(
+                    f"Request blocked by WAF. Response: {response.text[:500]}",
+                    status_code=response.status_code,
+                )
             raise MeroshareAPIError(
                 f"Failed to fetch capital list: {response.text}",
                 status_code=response.status_code,
                 response=response.json() if response.text else None,
             )
 
+        try:
+            data = response.json()
+        except Exception as e:
+            raise MeroshareAPIError(f"Invalid JSON response: {response.text[:500]}")
+
         capitals = []
-        for cap in response.json():
+        for cap in data:
             capital = Capital(
                 id=cap.get("id"),
                 code=cap.get("code"),
@@ -242,11 +256,21 @@ class MeroshareClient:
             "password": password,
         }
 
-        response = self._client.post(
-            f"{MS_API_BASE}/meroShare/auth/",
-            json=data,
-            headers=headers,
-        )
+        try:
+            response = self._client.post(
+                f"{MS_API_BASE}/meroShare/auth/",
+                json=data,
+                headers=headers,
+            )
+        except httpx.RequestError as e:
+            raise MeroshareAPIError(f"Network error during login: {e}")
+
+        # Check for WAF blocking first
+        if "URL was rejected" in response.text or "support ID" in response.text.lower():
+            raise MeroshareAPIError(
+                f"Request blocked by WAF. This may indicate incorrect headers. Response: {response.text[:500]}",
+                status_code=response.status_code,
+            )
 
         if response.status_code != 200:
             error_msg = "Login failed"
@@ -255,14 +279,17 @@ class MeroshareClient:
                 if isinstance(resp_json, dict):
                     error_msg = resp_json.get("message", error_msg)
             except Exception:
-                pass
+                error_msg = f"Login failed with status {response.status_code}: {response.text[:200]}"
             raise MeroshareAPIError(
                 error_msg,
                 status_code=response.status_code,
                 response=response.json() if response.text else None,
             )
 
-        resp_json = response.json()
+        try:
+            resp_json = response.json()
+        except Exception as e:
+            raise MeroshareAPIError(f"Invalid JSON response from login: {response.text[:500]}")
 
         # Check for various account issues
         if resp_json.get("passwordExpired"):
