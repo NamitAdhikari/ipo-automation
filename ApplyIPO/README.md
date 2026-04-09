@@ -1,11 +1,11 @@
 # 🚀 Meroshare IPO Auto-Apply Bot
 
-Automated IPO application bot for Meroshare (Nepal) that supports multiple accounts. This tool automatically applies for IPOs on your behalf, handling the entire application process from login to submission.
+Automated IPO application bot for Meroshare (Nepal) that supports multiple accounts. This tool automatically applies for IPOs on your behalf using **REST API calls** instead of browser automation - making it faster, more reliable, and requiring no browser installation.
 
 ## 📋 What It Does
 
 This automation bot:
-- Logs into your Meroshare account(s) automatically
+- Logs into your Meroshare account(s) automatically via API
 - Fetches available IPO listings
 - Intelligently selects the optimal number of units (kitta) to apply for
 - Fills out and submits IPO application forms
@@ -14,19 +14,20 @@ This automation bot:
 
 ## ✨ Features
 
+- **API-Based**: Uses REST API calls instead of browser automation (faster & more reliable)
+- **No Browser Required**: Works without Chrome or any browser installed
 - **Multi-Account Support**: Run IPO applications for multiple accounts in one go
 - **Smart Unit Selection**: Automatically determines the optimal number of units to apply for
 - **Rich Console Output**: Beautiful terminal UI with progress indicators and summaries
 - **Error Handling**: Continues processing remaining accounts even if one fails
-- **Configurable**: Control headless mode, wait times, and error handling behavior
+- **Configurable**: Control wait times and error handling behavior
 - **Account Management**: Enable/disable specific accounts without removing their configuration
 
 ## 🛠️ Setup
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- Chrome browser installed
+- Python 3.10 or higher
 - Valid Meroshare account credentials
 
 ### Installation
@@ -35,8 +36,12 @@ This automation bot:
 
 2. **Install Python (3.12+) dependencies**
    ```bash
+   # Using uv (recommended)
    uv venv -p 3.12
    uv pip install -r requirements.txt
+
+   # Or using pip
+   pip install -r requirements.txt
    ```
 
 3. **Configure your accounts**
@@ -62,7 +67,6 @@ This automation bot:
        }
      ],
      "settings": {
-       "headless": false,
        "wait_between_accounts_seconds": 5,
        "continue_on_account_failure": true
      }
@@ -81,7 +85,6 @@ This automation bot:
 - `pin`: Your transaction PIN
 
 **Global Settings:**
-- `headless`: Run browser in headless mode (no GUI) - `true` or `false`
 - `wait_between_accounts_seconds`: Delay between processing accounts (in seconds)
 - `continue_on_account_failure`: Continue with remaining accounts if one fails - `true` or `false`
 
@@ -92,12 +95,25 @@ This automation bot:
 Run IPO applications for all enabled accounts:
 
 ```bash
-python run_multi_account.py
+python run_multi_account_api.py
 ```
 
 OR with `uv`:
 ```bash
-uv run run_multi_account.py
+uv run run_multi_account_api.py
+```
+
+### Single Account Mode
+
+For single account usage, create a `.env` file:
+```bash
+cp .env.sample .env
+# Edit .env with your credentials
+```
+
+Then run:
+```bash
+python main_api.py
 ```
 
 This will:
@@ -116,7 +132,7 @@ The script provides rich terminal output including:
 
 Example:
 ```
-🚀 Meroshare IPO Auto-Apply Bot 🚀
+🚀 Meroshare IPO Auto-Apply Bot (API) 🚀
 
 📋 Account Summary
 
@@ -148,10 +164,38 @@ DP: 13700
 Total: 2 accounts | Success: 2 | Failed: 0
 ```
 
+## 🔧 Legacy Selenium Version
+
+The original Selenium-based automation scripts are still available:
+- `main_improved.py` - Single account (Selenium)
+- `run_multi_account.py` - Multi-account (Selenium)
+
+These require Chrome browser but may be useful for debugging or if the API changes.
+
+## 🧪 Manual Testing with Playwright
+
+For verifying the flow manually using a browser:
+
+```bash
+# Install playwright and browsers
+pip install playwright
+playwright install chromium
+
+# Run a test script
+python -c "
+from playwright.sync_api import sync_playwright
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=False)
+    page = browser.new_page()
+    page.goto('https://meroshare.cdsc.com.np')
+    input('Press Enter to close...')
+    browser.close()
+"
+```
+
 ## 📝 Tips
 
-- **Test with headless: false** initially to watch the automation and ensure everything works
-- **Set headless: true** for faster, unattended operation
+- **API-based is faster**: The API version completes in seconds vs minutes for Selenium
 - **Disable accounts** by setting `enabled: false` instead of deleting them
 - **Adjust wait times** if you experience rate limiting
 - **Keep credentials secure** - never commit `accounts.json` to version control
@@ -161,21 +205,18 @@ Total: 2 accounts | Success: 2 | Failed: 0
 - This tool is for personal use only
 - Ensure you have the legal right to automate your Meroshare account
 - Keep your `accounts.json` file secure and never share it
-- The bot requires Chrome browser to be installed
 - Make sure you have sufficient balance in your accounts before running
 
 ## 🐛 Troubleshooting
 
-**Browser not found:**
-- Ensure Chrome is installed on your system
-
 **Login fails:**
 - Verify your credentials in `accounts.json`
-- Check if the DP code is correct
+- Check if the DP code is correct (numeric code like 13700)
 
-**Timeout errors:**
+**API errors:**
 - Check your internet connection
-- Meroshare website might be slow or down
+- Meroshare API might be temporarily down
+- Your account credentials may have changed
 
 **Application fails:**
 - Verify you have sufficient balance
