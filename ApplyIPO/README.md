@@ -34,10 +34,10 @@ This automation bot:
 
 1. **Clone or download this project**
 
-2. **Install Python (3.12+) dependencies**
+2. **Install Python dependencies**
    ```bash
    # Using uv (recommended)
-   uv venv -p 3.12
+   uv venv -p 3.10
    uv pip install -r requirements.txt
 
    # Or using pip
@@ -174,24 +174,23 @@ These require Chrome browser but may be useful for debugging or if the API chang
 
 ## 🧪 Manual Testing with Playwright
 
-For verifying the flow manually using a browser:
+For verifying the flow manually using a browser, use the included test script:
 
 ```bash
 # Install playwright and browsers
 pip install playwright
 playwright install chromium
 
-# Run a test script
-python -c "
-from playwright.sync_api import sync_playwright
-with sync_playwright() as p:
-    browser = p.chromium.launch(headless=False)
-    page = browser.new_page()
-    page.goto('https://meroshare.cdsc.com.np')
-    input('Press Enter to close...')
-    browser.close()
-"
+# Run the test script with your credentials
+python test_with_playwright.py
 ```
+
+The test script will:
+1. Load credentials from `.env` or `accounts.json`
+2. Open a browser and login to Meroshare
+3. Navigate to IPO listing
+4. Test logout functionality
+5. Display a summary of results
 
 ## 📝 Tips
 
