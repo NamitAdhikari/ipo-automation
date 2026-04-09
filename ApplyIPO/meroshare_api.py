@@ -16,17 +16,26 @@ console = Console()
 
 # Constants
 MS_API_BASE = "https://webbackend.cdsc.com.np/api"
-USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:142.0) Gecko/20100101 Firefox/142.0"
 
+# Chrome-based User-Agent (more compatible with WAF)
+USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+
+# Headers that match Chrome browser behavior to avoid WAF blocking
+# These headers are critical to avoid "URL was rejected" errors
 BASE_HEADERS = {
-    "User-Agent": USER_AGENT,
     "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Accept-Encoding": "gzip, deflate, br, zstd",
-    "Content-Type": "application/json",
-    "Origin": "https://meroshare.cdsc.com.np",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Accept-Language": "en-US,en;q=0.9",
     "Connection": "keep-alive",
+    "Content-Type": "application/json",
+    "Host": "webbackend.cdsc.com.np",
+    "Origin": "https://meroshare.cdsc.com.np",
     "Referer": "https://meroshare.cdsc.com.np/",
+    "User-Agent": USER_AGENT,
+    # Chrome-specific headers required by WAF
+    "sec-ch-ua": '"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"macOS"',
     "Sec-Fetch-Dest": "empty",
     "Sec-Fetch-Mode": "cors",
     "Sec-Fetch-Site": "same-site",
@@ -101,9 +110,10 @@ class MeroshareClient:
         Args:
             timeout: HTTP request timeout in seconds
         """
+        # Create client without default headers - we'll set them per request
+        # This ensures proper header handling for each request type
         self._client = httpx.Client(
-            headers=BASE_HEADERS,
-            timeout=timeout,
+            timeout=httpx.Timeout(timeout, connect=10.0),
             follow_redirects=True,
         )
         self._auth_token: str | None = None
