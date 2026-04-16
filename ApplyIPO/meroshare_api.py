@@ -164,11 +164,21 @@ class MeroshareClient:
         Raises:
             MeroshareAPIError: If the API request fails
         """
-        headers = self._get_headers()
-        headers["Authorization"] = "null"
+        # Use direct requests (not session) - matches working implementation
+        headers = {
+            'sec-ch-ua-platform': '"macOS"',
+            'Authorization': 'null',
+            'Referer': 'https://meroshare.cdsc.com.np/',
+            'sec-ch-ua': '"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"',
+            'sec-ch-ua-mobile': '?0',
+            'User-Agent': USER_AGENT,
+            'Accept': 'application/json, text/plain, */*',
+            'Content-Type': 'application/json'
+        }
 
         try:
-            response = self._session.get(
+            # Use direct requests.get, NOT session - critical for WAF compatibility
+            response = requests.get(
                 f"{MS_API_BASE}/meroShare/capital/",
                 headers=headers,
                 timeout=self._timeout
@@ -268,8 +278,18 @@ class MeroshareClient:
         Raises:
             MeroshareAPIError: If login fails
         """
-        headers = self._get_headers()
-        headers["Authorization"] = "null"
+        # Use direct requests.post (not session) for login - matches working implementation
+        # Session can add extra headers/cookies that trigger WAF
+        headers = {
+            'sec-ch-ua-platform': '"macOS"',
+            'Authorization': 'null',
+            'Referer': 'https://meroshare.cdsc.com.np/',
+            'sec-ch-ua': '"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"',
+            'sec-ch-ua-mobile': '?0',
+            'User-Agent': USER_AGENT,
+            'Accept': 'application/json, text/plain, */*',
+            'Content-Type': 'application/json'
+        }
 
         data = {
             "clientId": str(capital_id),
@@ -278,7 +298,8 @@ class MeroshareClient:
         }
 
         try:
-            response = self._session.post(
+            # Use direct requests.post, NOT session - critical for WAF compatibility
+            response = requests.post(
                 f"{MS_API_BASE}/meroShare/auth/",
                 json=data,
                 headers=headers,
