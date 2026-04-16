@@ -25,26 +25,18 @@ MS_API_BASE = "https://webbackend.cdsc.com.np/api"
 # Chrome-based User-Agent (more compatible with WAF)
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
 
-# Headers that match Chrome browser behavior to avoid WAF blocking
-# These headers are critical to avoid "URL was rejected" errors
+# Headers matching the working implementation (raj-maharjan/nepal-ipo-bot)
+# IMPORTANT: Extra headers like Accept-Encoding, Connection, Origin, Sec-Fetch-*,
+# Pragma, Cache-Control trigger the WAF blocking. Keep headers minimal!
 BASE_HEADERS = {
     "Accept": "application/json, text/plain, */*",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Connection": "keep-alive",
     "Content-Type": "application/json",
-    "Origin": "https://meroshare.cdsc.com.np",
     "Referer": "https://meroshare.cdsc.com.np/",
     "User-Agent": USER_AGENT,
-    # Chrome-specific headers required by WAF
+    # Chrome-specific sec-ch headers
     "sec-ch-ua": '"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"',
     "sec-ch-ua-mobile": "?0",
     "sec-ch-ua-platform": '"macOS"',
-    "Sec-Fetch-Dest": "empty",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "same-site",
-    "Pragma": "no-cache",
-    "Cache-Control": "no-cache",
 }
 
 
