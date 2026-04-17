@@ -251,18 +251,26 @@ def run_account(account, account_num, total_accounts, settings=None) -> bool:
 
         # Apply to all available IPOs
         applied = 0
+        failed = 0
         for issue in filtered_issues:
             success = apply_single_ipo(applicator, issue, credentials["crn"])
             if success:
                 applied += 1
             else:
+                failed += 1
                 console.print(f"[yellow]⚠ Failed to apply for {issue.company_name}, continuing...[/yellow]")
 
         console.print()
-        console.print(f"[bold green]✅ Applied to {applied} IPO(s) for {account.get('name', 'Account')}[/bold green]")
+        if applied > 0:
+            console.print(f"[bold green]✅ Applied to {applied} IPO(s) for {account.get('name', 'Account')}[/bold green]")
+        else:
+            console.print(f"[bold red]❌ Failed to apply to any IPOs for {account.get('name', 'Account')}[/bold red]")
+        if failed > 0:
+            console.print(f"[yellow]⚠ {failed} application(s) failed[/yellow]")
         console.print()
 
-        return True
+        # Return True only if at least one application succeeded
+        return applied > 0
 
     except MeroshareAPIError as e:
         console.print()
