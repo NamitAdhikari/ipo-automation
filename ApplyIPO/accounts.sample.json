@@ -24,7 +24,6 @@
     }
   ],
   "settings": {
-    "headless": false,
     "wait_between_accounts_seconds": 5,
     "continue_on_account_failure": true
   }
