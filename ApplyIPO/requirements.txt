@@ -1,12 +1,6 @@
-# Core dependencies for IPO automation
-python-dotenv>=1.2.2,<2.0.0
+# Core dependencies
 rich>=15.0.0,<16.0.0
-
-# For API-based scripts (main_api.py, run_multi_account_api.py)
 httpx>=0.27.0,<1.0.0
 
-# For browser-based scripts (main_improved.py, run_multi_account.py)
-selenium>=4.43.0,<5.0.0
-
-# Development/testing dependencies (optional)
-playwright>=1.59.0,<2.0.0
+# Telegram bot (job-queue extra pulls in APScheduler for scheduled jobs)
+python-telegram-bot[job-queue]>=20.0,<22.0
