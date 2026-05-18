@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  ipobot.plist — macOS launchd agent for bot.py
+  ================================================
+  SETUP (one-time):
+    1. Copy to LaunchAgents:
+         cp scripts/ipobot.plist ~/Library/LaunchAgents/com.user.ipobot.plist
+    2. Load it:
+         launchctl load ~/Library/LaunchAgents/com.user.ipobot.plist
+    3. Check it started:
+         launchctl list | grep ipobot
+
+  USEFUL COMMANDS:
+    Stop:    launchctl unload ~/Library/LaunchAgents/com.user.ipobot.plist
+    Restart: launchctl unload ~/Library/LaunchAgents/com.user.ipobot.plist && \
+             launchctl load   ~/Library/LaunchAgents/com.user.ipobot.plist
+    Logs:    tail -f /tmp/ipobot.log
+    Errors:  tail -f /tmp/ipobot.err
+
+  BEHAVIOUR:
+    - Starts automatically when you log in
+    - Restarts automatically if bot.py crashes (KeepAlive = true)
+    - Stops when you shut down or log out (as intended)
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user.ipobot</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/CHANGE/ME/ApplyIPO/.venv/bin/python3</string>
+        <string>/CHANGE/ME/ApplyIPO/bot.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/CHANGE/ME/ApplyIPO</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/ipobot.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/ipobot.err</string>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+</dict>
+</plist>
