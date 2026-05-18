@@ -48,28 +48,8 @@ class AccountCheckResult:
 
 
 def load_accounts(config_file: str = "accounts.json") -> dict:
-    try:
-        with open(config_file) as f:
-            return json.load(f)
-    except FileNotFoundError:
-        console.print(
-            Panel(
-                f"[red]❌ Config file not found: {config_file}[/red]\n\n"
-                "[yellow]💡 Create it based on accounts.sample.json[/yellow]",
-                title="[bold red]Error[/bold red]",
-                border_style="red",
-            )
-        )
-        sys.exit(2)
-    except json.JSONDecodeError as e:
-        console.print(
-            Panel(
-                f"[red]❌ Invalid JSON in {config_file}[/red]\n\n[yellow]{e}[/yellow]",
-                title="[bold red]JSON Error[/bold red]",
-                border_style="red",
-            )
-        )
-        sys.exit(2)
+    with open(config_file) as f:
+        return json.load(f)
 
 
 def check_account(account: dict) -> AccountCheckResult:
@@ -155,7 +135,27 @@ def main():
     )
     console.print()
 
-    config = load_accounts()
+    try:
+        config = load_accounts()
+    except FileNotFoundError as e:
+        console.print(
+            Panel(
+                f"[red]❌ Config file not found: {e.filename}[/red]\n\n"
+                "[yellow]💡 Create it based on accounts.sample.json[/yellow]",
+                title="[bold red]Error[/bold red]",
+                border_style="red",
+            )
+        )
+        sys.exit(2)
+    except json.JSONDecodeError as e:
+        console.print(
+            Panel(
+                f"[red]❌ Invalid JSON in accounts.json[/red]\n\n[yellow]{e}[/yellow]",
+                title="[bold red]JSON Error[/bold red]",
+                border_style="red",
+            )
+        )
+        sys.exit(2)
     enabled_accounts = [a for a in config["accounts"] if a.get("enabled", True)]
 
     if not enabled_accounts:

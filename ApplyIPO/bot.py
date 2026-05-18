@@ -4,7 +4,7 @@ Meroshare IPO Telegram Bot
 
 Listens for Telegram bot commands and runs IPO checks/applications.
 
-Configuration: accounts.json -> settings -> telegram_bot_token
+Configuration: accounts.json -> settings -> telegram -> bot_token
 
 Commands:
   /start  — Get your Telegram chat ID (needed for notification setup)
@@ -12,7 +12,7 @@ Commands:
   /apply  — Check then apply for all applicable IPOs across all accounts
 
 Scheduling:
-  Set accounts.json -> settings -> auto_apply -> enabled: true to automatically
+  Set accounts.json -> settings -> telegram -> auto_apply -> enabled: true to automatically
   check and apply every day at the configured time.
 """
 
@@ -357,13 +357,25 @@ def main() -> None:
     if auto_cfg.get("enabled", False):
         time_str = auto_cfg.get("time", "10:00")
         tz_str = auto_cfg.get("timezone", "Asia/Kathmandu")
-        hour, minute = (int(p) for p in time_str.split(":"))
-        tz = zoneinfo.ZoneInfo(tz_str)
-        app.job_queue.run_daily(
-            scheduled_auto_apply,
-            time=datetime.time(hour, minute, tzinfo=tz),
-        )
-        logger.info("Scheduled auto-apply enabled — daily at %s %s", time_str, tz_str)
+        try:
+            parts = time_str.split(":")
+            if len(parts) != 2:
+                raise ValueError(f"expected HH:MM, got {time_str!r}")
+            hour, minute = int(parts[0]), int(parts[1])
+            tz = zoneinfo.ZoneInfo(tz_str)
+        except (ValueError, zoneinfo.ZoneInfoNotFoundError) as exc:
+            logger.warning(
+                "Invalid auto_apply config (%s) — scheduled auto-apply disabled. "
+                "Check 'time' (HH:MM) and 'timezone' (e.g. Asia/Kathmandu) in accounts.json. "
+                "Windows users may need to install the 'tzdata' package.",
+                exc,
+            )
+        else:
+            app.job_queue.run_daily(
+                scheduled_auto_apply,
+                time=datetime.time(hour, minute, tzinfo=tz),
+            )
+            logger.info("Scheduled auto-apply enabled — daily at %s %s", time_str, tz_str)
 
     logger.info("Bot started — listening for commands…")
     app.run_polling(allowed_updates=Update.ALL_TYPES)

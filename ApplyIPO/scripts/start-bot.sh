@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # start-bot.sh — Shell wrapper used by launchd (macOS) and systemd (Linux).
-#
-# Edit PROJECT_DIR to the absolute path of your ApplyIPO folder.
-# The script activates the venv and runs bot.py from the correct directory.
+# PROJECT_DIR is resolved automatically from the script's location.
 
 PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 
