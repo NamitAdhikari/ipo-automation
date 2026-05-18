@@ -17,13 +17,16 @@ It can also apply automatically on a schedule, silently, every day.
 
 You need your numeric chat ID to authorize yourself and receive notifications.
 
-1. Start the bot you just created (search its username in Telegram, hit **Start**)
-2. Run the bot locally once:
+1. Add your bot token to `accounts.json` first (even temporarily):
+   ```json
+   "telegram": { "bot_token": "123456:ABC-DEF...", "chat_ids": [] }
+   ```
+2. Run the bot:
    ```bash
    .venv/bin/python3 bot.py
    ```
-3. Send `/start` to your bot in Telegram
-4. The bot replies with your chat ID — copy it
+3. **In Telegram:** open your bot and send `/start`
+4. The bot replies with your chat ID — copy the number into `chat_ids`
 
 ---
 
@@ -50,13 +53,13 @@ Add the token and your chat ID under `settings.telegram`:
 
 ---
 
-## 4. Register bot commands *(optional)*
+## 4. Register bot commands *(manual, optional)*
 
-This adds a command menu inside Telegram (the `/` button). Not required — commands work without it.
+> **Requires manual action in Telegram.** This adds the `/` command menu inside the chat — purely cosmetic, commands work fine without it.
 
 1. Message **[@BotFather](https://t.me/BotFather)**
-2. Send `/setcommands`, select your bot
-3. Paste:
+2. Send `/setcommands` and select your bot when prompted
+3. Paste the following and send:
    ```
    start - Get your chat ID
    check - Check open IPOs
@@ -77,13 +80,13 @@ To run it as a background service that starts on login and restarts on crash, se
 
 ## Commands
 
-| Command | What it does |
-|---------|-------------|
-| `/start` | Shows your chat ID — useful when setting up a new account |
-| `/check` | Lists all currently open IPOs across your accounts |
-| `/apply` | Applies to every open IPO for all enabled accounts |
+| Command | Requires manual setup? | What it does |
+|---------|----------------------|-------------|
+| `/start` | No | Shows your chat ID — useful when adding a new account |
+| `/check` | No | Lists all currently open IPOs across your accounts |
+| `/apply` | No | Applies to every open IPO for all enabled accounts |
 
-All commands work instantly — no confirmation prompts.
+All commands work instantly with no confirmation prompts.
 
 ---
 
