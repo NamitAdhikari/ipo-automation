@@ -31,10 +31,12 @@ from check_ipos import AccountCheckResult, check_all_accounts
 from run_accounts import AccountApplyResult, apply_all_accounts
 
 logging.basicConfig(
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
     level=logging.INFO,
 )
 logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("apscheduler").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 CONFIG_FILE = Path(__file__).parent / "accounts.json"
@@ -69,6 +71,15 @@ def get_token(config: dict) -> str:
 def _esc(text: str) -> str:
     """Escape HTML special characters for Telegram HTML parse mode."""
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _log_user(update: Update) -> str:
+    """Return a compact user label for log lines, e.g. 'Namit (@namit)'."""
+    user = update.effective_user
+    if not user:
+        return f"chat_id={update.effective_chat.id}"
+    tag = f" (@{user.username})" if user.username else ""
+    return f"{user.first_name}{tag}"
 
 
 def is_allowed(update: Update, config: dict) -> bool:
@@ -197,7 +208,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     name = user.first_name if user else "there"
     username = f"@{user.username}" if (user and user.username) else "no username"
 
-    logger.info("/start from %s (%s) — chat_id: %s", name, username, chat_id)
+    logger.info("[/start] %s — chat_id: %s", _log_user(update), chat_id)
 
     await update.message.reply_text(
         f"👋 Hey <b>{_esc(name)}</b>!\n\n"
@@ -214,9 +225,10 @@ async def cmd_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     config = load_config()
     if not is_allowed(update, config):
-        logger.warning("Unauthorized /check from chat_id=%s", update.effective_chat.id)
+        logger.warning("[/check] unauthorized — chat_id=%s", update.effective_chat.id)
         return
 
+    logger.info("[/check] %s", _log_user(update))
     await update.message.reply_text("⏳ Checking all accounts for applicable IPOs…")
 
     if not [a for a in config["accounts"] if a.get("enabled", True)]:
@@ -228,9 +240,11 @@ async def cmd_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     try:
         results = check_all_accounts(config)
+        total_ipos = sum(len(r.ipos) for r in results if r.ok)
+        logger.info("[/check] done — %d IPO(s) across %d account(s)", total_ipos, len(results))
         await update.message.reply_text(format_check_results(results), parse_mode=ParseMode.HTML)
     except Exception as e:
-        logger.exception("Unexpected error during /check")
+        logger.exception("[/check] unexpected error")
         await update.message.reply_text(
             f"❌ <b>Unexpected error</b>\n\n<code>{_esc(str(e))}</code>\n\n"
             "<i>Check the bot logs for details.</i>",
@@ -244,8 +258,10 @@ async def cmd_apply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     config = load_config()
     if not is_allowed(update, config):
-        logger.warning("Unauthorized /apply from chat_id=%s", update.effective_chat.id)
+        logger.warning("[/apply] unauthorized — chat_id=%s", update.effective_chat.id)
         return
+
+    logger.info("[/apply] %s", _log_user(update))
 
     if not [a for a in config["accounts"] if a.get("enabled", True)]:
         await update.message.reply_text(
@@ -259,7 +275,7 @@ async def cmd_apply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         check_results = check_all_accounts(config)
     except Exception as e:
-        logger.exception("Error during pre-apply check")
+        logger.exception("[/apply] check failed")
         await update.message.reply_text(
             f"❌ <b>Check failed</b>\n\n<code>{_esc(str(e))}</code>",
             parse_mode=ParseMode.HTML,
@@ -269,11 +285,13 @@ async def cmd_apply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     total_available = sum(len(r.ipos) for r in check_results if r.ok)
 
     if total_available == 0:
+        logger.info("[/apply] no applicable IPOs — nothing to apply")
         await update.message.reply_text(
             format_check_results(check_results), parse_mode=ParseMode.HTML
         )
         return
 
+    logger.info("[/apply] %d applicable IPO(s) found, applying…", total_available)
     await update.message.reply_text(
         f"✅ Found <b>{total_available}</b> applicable IPO(s). Applying now…",
         parse_mode=ParseMode.HTML,
@@ -281,11 +299,13 @@ async def cmd_apply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     try:
         apply_results = apply_all_accounts(config)
+        applied_total = sum(len(r.applied) for r in apply_results if r.ok)
+        logger.info("[/apply] done — applied to %d IPO(s) across %d account(s)", applied_total, len(apply_results))
         await update.message.reply_text(
             format_apply_results(apply_results), parse_mode=ParseMode.HTML
         )
     except Exception as e:
-        logger.exception("Unexpected error during /apply")
+        logger.exception("[/apply] unexpected error")
         await update.message.reply_text(
             f"❌ <b>Apply failed</b>\n\n<code>{_esc(str(e))}</code>\n\n"
             "<i>Check the bot logs for details.</i>",
@@ -295,7 +315,7 @@ async def cmd_apply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def scheduled_auto_apply(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Scheduled job: silently check for IPOs, apply if found, notify via chat ID."""
-    logger.info("Scheduled auto-apply: checking for IPOs…")
+    logger.info("[scheduled] checking for IPOs…")
     config = load_config()
     chat_ids = get_notification_chat_ids(config)
 
@@ -306,12 +326,12 @@ async def scheduled_auto_apply(context: ContextTypes.DEFAULT_TYPE) -> None:
                     chat_id=chat_id, text=text, parse_mode=ParseMode.HTML
                 )
             except Exception:
-                logger.exception("Failed to notify chat_id=%s", chat_id)
+                logger.exception("[scheduled] failed to notify chat_id=%s", chat_id)
 
     try:
         check_results = check_all_accounts(config)
     except Exception as e:
-        logger.exception("Scheduled auto-apply: check failed")
+        logger.exception("[scheduled] check failed")
         await notify(
             f"⏰ <b>Scheduled check failed</b>\n\n"
             f"<code>{_esc(str(e))}</code>\n\n"
@@ -322,10 +342,10 @@ async def scheduled_auto_apply(context: ContextTypes.DEFAULT_TYPE) -> None:
     total_available = sum(len(r.ipos) for r in check_results if r.ok)
 
     if total_available == 0:
-        logger.info("Scheduled auto-apply: no applicable IPOs found, staying silent")
+        logger.info("[scheduled] no applicable IPOs — staying silent")
         return  # Silent — no message, no spam
 
-    logger.info("Scheduled auto-apply: found %d IPO(s), applying…", total_available)
+    logger.info("[scheduled] found %d IPO(s), applying…", total_available)
     await notify(
         f"⏰ <b>Scheduled auto-apply triggered</b>\n\n"
         f"Found <b>{total_available}</b> applicable IPO(s). Applying now…"
@@ -333,9 +353,11 @@ async def scheduled_auto_apply(context: ContextTypes.DEFAULT_TYPE) -> None:
 
     try:
         apply_results = apply_all_accounts(config)
+        applied_total = sum(len(r.applied) for r in apply_results if r.ok)
+        logger.info("[scheduled] done — applied to %d IPO(s) across %d account(s)", applied_total, len(apply_results))
         await notify(format_apply_results(apply_results))
     except Exception as e:
-        logger.exception("Scheduled auto-apply: apply failed")
+        logger.exception("[scheduled] apply failed")
         await notify(
             f"❌ <b>Auto-apply failed</b>\n\n"
             f"<code>{_esc(str(e))}</code>\n\n"
