@@ -149,11 +149,17 @@ def apply_single_ipo(applicator: MeroshareIPOApplicator, issue: IPOIssue, crn: s
     console.print()
 
     try:
-        # Get issue details for min kitta
-        details = applicator._client.get_issue_details(issue.company_share_id)
-        min_kitta = details.get("minUnit", issue.min_unit)
+        # Get applicable kitta (handles right shares via eligibility check)
+        min_kitta, max_kitta, eligibility = applicator.get_applicable_kitta(issue)
 
-        console.print(f"[green]  ✓ Minimum Quantity:[/green] [bold white]{min_kitta}[/bold white] shares")
+        # Check if this is a right share (has rightShareKitta in eligibility)
+        right_share_kitta = eligibility.get("rightShareKitta")
+        is_right_share = right_share_kitta is not None and right_share_kitta > 0
+
+        if is_right_share:
+            console.print(f"[green]  ✓ Right Kitta Eligibility:[/green] [bold white]{min_kitta}[/bold white] shares")
+        else:
+            console.print(f"[green]  ✓ Minimum Quantity:[/green] [bold white]{min_kitta}[/bold white] shares")
 
         if applicator.bank_info:
             console.print(f"[green]  ✓ Bank:[/green] [white]{applicator.bank_info.get('bank_name', 'N/A')}[/white]")
@@ -233,13 +239,15 @@ def run_account(account, account_num, total_accounts, settings=None) -> bool:
         # Fetch applicable IPOs
         issues = applicator.get_applicable_ipos()
 
-        # Filter to ordinary shares only
+        # Filter to supported share types (ordinary shares and right shares)
         filtered_issues = []
         for issue in issues:
-            if issue.share_group.lower() != "ordinary shares":
+            share_group_lower = issue.share_group.lower()
+            # Support ordinary shares and right shares (ordinary shares category)
+            if share_group_lower not in ["ordinary shares"]:
                 console.print(
                     f"[yellow]⚠ Skipping {issue.company_name} - "
-                    f"Unsupported share type: {issue.share_group}[/yellow]"
+                    f"Unsupported share group: {issue.share_group}[/yellow]"
                 )
                 continue
             filtered_issues.append(issue)

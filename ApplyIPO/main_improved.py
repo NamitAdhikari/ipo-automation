@@ -217,9 +217,55 @@ def fetch_companies():
 
 def find_min_kitta_smart(section_blocks: list) -> str | None:
     """
-    Find minimum kitta by searching for "Minimum Quantity" in the entire column text.
+    Find minimum kitta by searching for "Minimum Quantity" or "Right Kitta Eligibility" in the entire column text.
+    For right shares, prioritizes "Right Kitta Eligibility" over "Minimum Quantity".
     """
-    # Search for column containing "Minimum Quantity" text
+    # First, try to find "Right Kitta Eligibility" (for right shares)
+    for section in section_blocks:
+        try:
+            col_divs = section.find_elements(By.CSS_SELECTOR, ".col-md-4")
+
+            for col in col_divs:
+                try:
+                    col_text = col.text.strip()
+                    col_text_lower = col_text.lower()
+
+                    # Check for "Right Kitta Eligibility" - prioritize this for right shares
+                    if any(
+                        phrase in col_text_lower
+                        for phrase in [
+                            "right kitta eligibility",
+                            "right share kitta",
+                            "kitta eligibility",
+                        ]
+                    ):
+                        try:
+                            form_value = col.find_element(
+                                By.CSS_SELECTOR, ".form-value"
+                            )
+                            value_span = form_value.find_element(By.TAG_NAME, "span")
+                            value_text = value_span.text.strip()
+
+                            if value_text.isdigit() and int(value_text) > 0:
+                                console.print(
+                                    f"[green]  ✓ Right Kitta Eligibility:[/green] [bold white]{value_text}[/bold white] shares"
+                                )
+                                return value_text
+                        except Exception:
+                            import re
+                            numbers = re.findall(r"\b\d+\b", col_text)
+                            for num in numbers:
+                                if 1 <= int(num) <= 100000:
+                                    console.print(
+                                        f"[green]  ✓ Right Kitta Eligibility:[/green] [bold white]{num}[/bold white] shares"
+                                    )
+                                    return num
+                except Exception:
+                    continue
+        except Exception:
+            continue
+
+    # Fallback: Search for "Minimum Quantity" (for regular IPOs)
     for section in section_blocks:
         try:
             col_divs = section.find_elements(By.CSS_SELECTOR, ".col-md-4")

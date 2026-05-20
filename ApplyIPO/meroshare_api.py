@@ -871,6 +871,44 @@ class MeroshareIPOApplicator:
         # Filter to only those that can be applied (no action means can apply)
         return [issue for issue in issues if issue.action is None]
 
+    def get_applicable_kitta(self, issue: IPOIssue) -> tuple[int, int, dict]:
+        """
+        Get the applicable kitta range for an IPO issue.
+
+        For right shares, uses the rightShareKitta from eligibility check.
+        For other shares, uses minUnit/maxUnit from issue details.
+
+        Args:
+            issue: The IPOIssue to get kitta range for
+
+        Returns:
+            Tuple of (min_kitta, max_kitta, eligibility_response)
+
+        Raises:
+            MeroshareAPIError: If not logged in or eligibility check fails
+        """
+        if not self._dmat:
+            raise MeroshareAPIError("Not logged in. Please login first.")
+
+        # Get issue details for min/max units
+        details = self._client.get_issue_details(issue.company_share_id)
+        min_kitta = details.get("minUnit", issue.min_unit)
+        max_kitta = details.get("maxUnit", issue.max_unit)
+
+        # Check eligibility - this also provides rightShareKitta for right shares
+        eligibility = self._client.check_can_apply(issue.company_share_id, self._dmat)
+
+        # For right shares, use rightShareKitta as the applicable kitta
+        # The rightShareKitta field contains the user's eligible kitta based on their shareholding
+        right_share_kitta = eligibility.get("rightShareKitta")
+        if right_share_kitta is not None and right_share_kitta > 0:
+            # For right shares, the applicable kitta is the rightShareKitta
+            # Both min and max should be set to this value
+            min_kitta = right_share_kitta
+            max_kitta = right_share_kitta
+
+        return min_kitta, max_kitta, eligibility
+
     def apply_ipo(self, issue: IPOIssue, kitta: int | None = None) -> dict:
         """
         Apply for an IPO.
@@ -890,10 +928,8 @@ class MeroshareIPOApplicator:
         if not self._bank_info:
             raise MeroshareAPIError("Bank information not available.")
 
-        # Get issue details for min/max units
-        details = self._client.get_issue_details(issue.company_share_id)
-        min_kitta = details.get("minUnit", issue.min_unit)
-        max_kitta = details.get("maxUnit", issue.max_unit)
+        # Get applicable kitta range (handles right shares via eligibility check)
+        min_kitta, max_kitta, eligibility = self.get_applicable_kitta(issue)
 
         if kitta is None:
             kitta = min_kitta
@@ -903,8 +939,7 @@ class MeroshareIPOApplicator:
         if kitta > max_kitta:
             raise MeroshareAPIError(f"Kitta must be at most {max_kitta}")
 
-        # Check eligibility
-        eligibility = self._client.check_can_apply(issue.company_share_id, self._dmat)
+        # Verify eligibility
         if eligibility.get("message") != "Customer can apply.":
             raise MeroshareAPIError(
                 f"Cannot apply: {eligibility.get('message', 'Unknown reason')}"
