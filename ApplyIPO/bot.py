@@ -160,6 +160,11 @@ def format_check_results(results: list[AccountCheckResult]) -> str:
                 lines.append(
                     f"  • <b>{_esc(ipo.company_name)}</b>  <code>{_esc(ipo.scrip)}</code>"
                 )
+                meta = " · ".join(
+                    filter(None, [_esc(ipo.share_type), _esc(ipo.share_group), _esc(ipo.sub_group)])
+                )
+                if meta:
+                    lines.append(f"    <i>{meta}</i>")
         else:
             lines.append("  — Nothing right now")
         lines.append("")
@@ -339,6 +344,11 @@ async def scheduled_auto_apply(context: ContextTypes.DEFAULT_TYPE) -> None:
                     lines.append(
                         f"  • <b>{_esc(ipo.company_name)}</b>  <code>{_esc(ipo.scrip)}</code>"
                     )
+                    meta = " · ".join(
+                        filter(None, [_esc(ipo.share_type), _esc(ipo.share_group), _esc(ipo.sub_group)])
+                    )
+                    if meta:
+                        lines.append(f"    <i>{meta}</i>")
                 lines.append("")
         await notify("\n".join(lines), reply_markup=keyboard)
     else:
