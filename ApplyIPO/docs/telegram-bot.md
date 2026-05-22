@@ -84,7 +84,7 @@ To run it as a background service that starts on login and restarts on crash, se
 | Command | Requires manual setup? | What it does |
 |---------|----------------------|-------------|
 | `/start` | No | Shows your chat ID — useful when adding a new account |
-| `/check` | No | Lists all currently open IPOs; tap **✅ Apply now** to apply inline |
+| `/check` | No | Lists open IPOs with issue type, share type, and category; tap **✅ Apply now** to apply inline |
 
 All prompts (inline buttons) expire at midnight so stale buttons in chat history never apply to old results.
 
