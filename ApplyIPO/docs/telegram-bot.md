@@ -23,7 +23,7 @@ You need your numeric chat ID to authorize yourself and receive notifications.
    ```
 2. Run the bot:
    ```bash
-   .venv/bin/python3 bot.py
+   uv run bot.py
    ```
 3. **In Telegram:** open your bot and send `/start`
 4. The bot replies with your chat ID — copy the number into `chat_ids`
@@ -72,7 +72,7 @@ Add the token and your chat ID under `settings.telegram`:
 ## 5. Run the bot
 
 ```bash
-.venv/bin/python3 bot.py
+uv run bot.py
 ```
 
 To run it as a background service that starts on login and restarts on crash, see [`scripts/README.md`](../scripts/README.md).
