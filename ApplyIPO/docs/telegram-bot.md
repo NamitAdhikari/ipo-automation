@@ -41,7 +41,8 @@ Add the token and your chat ID under `settings.telegram`:
   "auto_apply": {
     "enabled": false,
     "time": "10:00",
-    "timezone": "Asia/Kathmandu"
+    "timezone": "Asia/Kathmandu",
+    "confirm_before_apply": false
   }
 }
 ```
@@ -50,6 +51,7 @@ Add the token and your chat ID under `settings.telegram`:
 - **`auto_apply.enabled`** — set to `true` to apply automatically every day at the configured time.
 - **`auto_apply.time`** — 24-hour format (`"10:00"`)
 - **`auto_apply.timezone`** — any valid tz name, e.g. `"Asia/Kathmandu"`
+- **`auto_apply.confirm_before_apply`** — when `true`, the scheduled job sends an inline prompt ("Apply now?" / "Skip") instead of applying automatically; prompt expires at midnight
 
 ---
 
@@ -62,8 +64,7 @@ Add the token and your chat ID under `settings.telegram`:
 3. Paste the following and send:
    ```
    start - Get your chat ID
-   check - Check open IPOs
-   apply - Apply to all open IPOs
+   check - Check open IPOs (tap Apply now to apply)
    ```
 
 ---
@@ -83,10 +84,9 @@ To run it as a background service that starts on login and restarts on crash, se
 | Command | Requires manual setup? | What it does |
 |---------|----------------------|-------------|
 | `/start` | No | Shows your chat ID — useful when adding a new account |
-| `/check` | No | Lists all currently open IPOs across your accounts |
-| `/apply` | No | Applies to every open IPO for all enabled accounts |
+| `/check` | No | Lists all currently open IPOs; tap **✅ Apply now** to apply inline |
 
-All commands work instantly with no confirmation prompts.
+All prompts (inline buttons) expire at midnight so stale buttons in chat history never apply to old results.
 
 ---
 
@@ -95,3 +95,6 @@ All commands work instantly with no confirmation prompts.
 When `auto_apply.enabled` is `true`, the bot runs a check every day at the configured time.  
 **If IPOs are open** — it applies and sends you a summary.  
 **If nothing is open** — it does nothing. No message, no noise.
+
+Set `confirm_before_apply: true` to receive an inline **Apply now / Skip** prompt instead of auto-applying — useful when you want to stay in control without running `/check` manually.  
+The prompt expires at midnight of the same day.

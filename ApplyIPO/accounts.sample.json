@@ -32,7 +32,8 @@
       "auto_apply": {
         "enabled": false,
         "time": "10:00",
-        "timezone": "Asia/Kathmandu"
+        "timezone": "Asia/Kathmandu",
+        "confirm_before_apply": false
       }
     }
   }
