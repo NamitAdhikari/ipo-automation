@@ -25,6 +25,16 @@
   ],
   "settings": {
     "wait_between_accounts_seconds": 5,
-    "continue_on_account_failure": true
+    "continue_on_account_failure": true,
+    "telegram": {
+      "bot_token": "your_bot_token_from_botfather",
+      "chat_ids": [123456789],
+      "auto_apply": {
+        "enabled": false,
+        "time": "10:00",
+        "timezone": "Asia/Kathmandu",
+        "confirm_before_apply": false
+      }
+    }
   }
 }

@@ -1,0 +1,43 @@
+[Unit]
+Description=Meroshare IPO Telegram Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Edit ExecStart and WorkingDirectory to your actual ApplyIPO path.
+ExecStart=/CHANGE/ME/ApplyIPO/scripts/start-bot.sh
+WorkingDirectory=/CHANGE/ME/ApplyIPO
+
+Restart=always
+RestartSec=10
+
+# Capture output — view with: journalctl --user -u ipobot -f
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
+
+# ===========================================================================
+# SETUP (one-time):
+#   1. Edit the two /CHANGE/ME paths above.
+#   2. Copy to systemd user directory:
+#        mkdir -p ~/.config/systemd/user
+#        cp scripts/ipobot.service ~/.config/systemd/user/
+#   3. Enable + start:
+#        systemctl --user daemon-reload
+#        systemctl --user enable --now ipobot
+#   4. Check status:
+#        systemctl --user status ipobot
+#
+# USEFUL COMMANDS:
+#   Stop:    systemctl --user stop ipobot
+#   Restart: systemctl --user restart ipobot
+#   Logs:    journalctl --user -u ipobot -f
+#
+# BEHAVIOUR:
+#   - Starts automatically when you log in (loginctl enable-linger if needed
+#     on headless Linux to start without a desktop session)
+#   - Restarts automatically if bot.py crashes (Restart=always)
+#   - Stops when you shut down (as intended)
+# ===========================================================================

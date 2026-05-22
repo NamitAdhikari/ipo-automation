@@ -9,13 +9,14 @@ the REST API instead of browser automation.
 import json
 import sys
 import time
+from dataclasses import dataclass, field
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from meroshare_api import (
+from meroshare import (
     Capital,
     IPOIssue,
     MeroshareAPIError,
@@ -23,6 +24,99 @@ from meroshare_api import (
 )
 
 console = Console()
+
+
+# ---------------------------------------------------------------------------
+# Structured result types (used by bot.py / other callers)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class AppliedIPO:
+    """Result of a single IPO application."""
+    company_name: str
+    scrip: str
+    kitta: int
+    status: str
+
+
+@dataclass
+class AccountApplyResult:
+    """Result of running the full apply flow for one account."""
+    name: str
+    applied: list[AppliedIPO] = field(default_factory=list)
+    failed: list[str] = field(default_factory=list)   # "{company}: {reason}"
+    error: str | None = None                           # login/setup failure
+
+    @property
+    def ok(self) -> bool:
+        return self.error is None
+
+
+def apply_account(account: dict) -> AccountApplyResult:
+    """
+    Apply for all applicable IPOs for a single account.
+
+    Same core logic as run_account() but returns a structured
+    AccountApplyResult instead of printing to the console.
+    Safe to call from bot.py or any other non-CLI context.
+    """
+    name = account.get("name", "Unnamed")
+    credentials = account["credentials"]
+
+    applicator = MeroshareIPOApplicator(
+        username=credentials["username"],
+        password=credentials["password"],
+        dp_code=credentials["dp"],
+        crn=credentials["crn"],
+        pin=credentials["pin"],
+    )
+
+    try:
+        eligible_dps = applicator.find_matching_dps()
+        if not eligible_dps:
+            return AccountApplyResult(
+                name=name, error=f"No DP found matching '{credentials['dp']}'"
+            )
+
+        applicator.login(capital=eligible_dps[0])
+
+        issues = applicator.get_applicable_ipos()
+        filtered = [i for i in issues if i.share_group.lower() == "ordinary shares"]
+
+        result = AccountApplyResult(name=name)
+
+        for issue in filtered:
+            try:
+                details = applicator._client.get_issue_details(issue.company_share_id)
+                min_kitta = details.get("minUnit", issue.min_unit)
+                api_result = applicator.apply_ipo(issue, kitta=min_kitta)
+                result.applied.append(AppliedIPO(
+                    company_name=issue.company_name,
+                    scrip=issue.scrip,
+                    kitta=min_kitta,
+                    status=api_result.get("status", "SUCCESS"),
+                ))
+            except MeroshareAPIError as e:
+                result.failed.append(f"{issue.company_name}: {e}")
+
+        return result
+
+    except MeroshareAPIError as e:
+        return AccountApplyResult(name=name, error=str(e))
+    finally:
+        try:
+            applicator.close()
+        except Exception:
+            pass
+
+
+def apply_all_accounts(config: dict) -> list[AccountApplyResult]:
+    """
+    Apply for all applicable IPOs across all enabled accounts.
+    Returns a list of AccountApplyResult — one per enabled account.
+    """
+    enabled = [a for a in config["accounts"] if a.get("enabled", True)]
+    return [apply_account(a) for a in enabled]
 
 
 def print_header():
