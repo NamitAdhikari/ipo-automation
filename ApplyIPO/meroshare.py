@@ -8,10 +8,10 @@ Note: We use direct httpx calls (not httpx.Client) because the Meroshare WAF is 
 compatible with individual requests without persistent connection handling.
 """
 
-import httpx
 from dataclasses import dataclass
 from typing import Any
 
+import httpx
 from rich.console import Console
 
 console = Console()
@@ -27,20 +27,20 @@ USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36
 def _get_base_headers(auth_token: str | None = None) -> dict:
     """
     Get base headers for API requests.
-    
+
     Uses minimal headers matching the working implementation pattern.
     Extra headers like Accept-Encoding, Connection, Origin, Sec-Fetch-*,
     Pragma, Cache-Control trigger WAF blocking.
     """
     headers = {
-        'sec-ch-ua-platform': '"macOS"',
-        'Authorization': auth_token if auth_token else 'null',
-        'Referer': 'https://meroshare.cdsc.com.np/',
-        'sec-ch-ua': '"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"',
-        'sec-ch-ua-mobile': '?0',
-        'User-Agent': USER_AGENT,
-        'Accept': 'application/json, text/plain, */*',
-        'Content-Type': 'application/json'
+        "sec-ch-ua-platform": '"macOS"',
+        "Authorization": auth_token if auth_token else "null",
+        "Referer": "https://meroshare.cdsc.com.np/",
+        "sec-ch-ua": '"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"',
+        "sec-ch-ua-mobile": "?0",
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json",
     }
     return headers
 
@@ -87,7 +87,9 @@ class IPOIssue:
 class MeroshareAPIError(Exception):
     """Custom exception for Meroshare API errors"""
 
-    def __init__(self, message: str, status_code: int | None = None, response: Any = None):
+    def __init__(
+        self, message: str, status_code: int | None = None, response: Any = None
+    ):
         super().__init__(message)
         self.status_code = status_code
         self.response = response
@@ -102,7 +104,7 @@ class MeroshareClient:
     - Fetching available IPOs
     - Applying for IPOs
     - Getting account details
-    
+
     Uses direct httpx calls (no persistent client) for better WAF compatibility.
     """
 
@@ -152,14 +154,17 @@ class MeroshareClient:
             response = httpx.get(
                 f"{MS_API_BASE}/meroShare/capital/",
                 headers=headers,
-                timeout=self._timeout
+                timeout=self._timeout,
             )
         except httpx.RequestError as e:
             raise MeroshareAPIError(f"Network error fetching capitals: {e}")
 
         if response.status_code != 200:
             # Check for WAF blocking
-            if "URL was rejected" in response.text or "support ID" in response.text.lower():
+            if (
+                "URL was rejected" in response.text
+                or "support ID" in response.text.lower()
+            ):
                 raise MeroshareAPIError(
                     f"Request blocked by WAF. Response: {response.text[:500]}",
                     status_code=response.status_code,
@@ -172,7 +177,7 @@ class MeroshareClient:
 
         try:
             data = response.json()
-        except Exception as e:
+        except Exception:
             raise MeroshareAPIError(f"Invalid JSON response: {response.text[:500]}")
 
         capitals = []
@@ -263,7 +268,7 @@ class MeroshareClient:
                 f"{MS_API_BASE}/meroShare/auth/",
                 json=data,
                 headers=headers,
-                timeout=self._timeout
+                timeout=self._timeout,
             )
         except httpx.RequestError as e:
             raise MeroshareAPIError(f"Network error during login: {e}")
@@ -291,8 +296,10 @@ class MeroshareClient:
 
         try:
             resp_json = response.json()
-        except Exception as e:
-            raise MeroshareAPIError(f"Invalid JSON response from login: {response.text[:500]}")
+        except Exception:
+            raise MeroshareAPIError(
+                f"Invalid JSON response from login: {response.text[:500]}"
+            )
 
         # Check for various account issues
         if resp_json.get("passwordExpired"):
@@ -330,7 +337,7 @@ class MeroshareClient:
             response = httpx.get(
                 f"{MS_API_BASE}/meroShare/auth/logout/",
                 headers=headers,
-                timeout=self._timeout
+                timeout=self._timeout,
             )
         except httpx.RequestError as e:
             raise MeroshareAPIError(f"Network error during logout: {e}")
@@ -358,12 +365,12 @@ class MeroshareClient:
         self._require_auth()
 
         headers = _get_base_headers(self._auth_token)
-        
+
         try:
             response = httpx.get(
                 f"{MS_API_BASE}/meroShare/ownDetail/",
                 headers=headers,
-                timeout=self._timeout
+                timeout=self._timeout,
             )
         except httpx.RequestError as e:
             raise MeroshareAPIError(f"Network error getting own details: {e}")
@@ -394,12 +401,12 @@ class MeroshareClient:
         self._require_auth()
 
         headers = _get_base_headers(self._auth_token)
-        
+
         try:
             response = httpx.get(
                 f"{MS_API_BASE}/meroShareView/myDetail/{dmat}",
                 headers=headers,
-                timeout=self._timeout
+                timeout=self._timeout,
             )
         except httpx.RequestError as e:
             raise MeroshareAPIError(f"Network error getting account details: {e}")
@@ -425,12 +432,10 @@ class MeroshareClient:
         self._require_auth()
 
         headers = _get_base_headers(self._auth_token)
-        
+
         try:
             response = httpx.get(
-                f"{MS_API_BASE}/meroShare/bank/",
-                headers=headers,
-                timeout=self._timeout
+                f"{MS_API_BASE}/meroShare/bank/", headers=headers, timeout=self._timeout
             )
         except httpx.RequestError as e:
             raise MeroshareAPIError(f"Network error getting bank list: {e}")
@@ -459,12 +464,12 @@ class MeroshareClient:
         self._require_auth()
 
         headers = _get_base_headers(self._auth_token)
-        
+
         try:
             response = httpx.get(
                 f"{MS_API_BASE}/meroShare/bank/{bank_id}",
                 headers=headers,
-                timeout=self._timeout
+                timeout=self._timeout,
             )
         except httpx.RequestError as e:
             raise MeroshareAPIError(f"Network error getting bank details: {e}")
@@ -494,8 +499,15 @@ class MeroshareClient:
         data = {
             "filterFieldParams": [
                 {"key": "companyIssue.companyISIN.script", "alias": "Scrip"},
-                {"key": "companyIssue.companyISIN.company.name", "alias": "Company Name"},
-                {"key": "companyIssue.assignedToClient.name", "value": "", "alias": "Issue Manager"},
+                {
+                    "key": "companyIssue.companyISIN.company.name",
+                    "alias": "Company Name",
+                },
+                {
+                    "key": "companyIssue.assignedToClient.name",
+                    "value": "",
+                    "alias": "Issue Manager",
+                },
             ],
             "page": 1,
             "size": 100,
@@ -511,7 +523,7 @@ class MeroshareClient:
                 f"{MS_API_BASE}/meroShare/companyShare/applicableIssue/",
                 json=data,
                 headers=headers,
-                timeout=self._timeout
+                timeout=self._timeout,
             )
         except httpx.RequestError as e:
             raise MeroshareAPIError(f"Network error fetching applicable issues: {e}")
@@ -559,12 +571,12 @@ class MeroshareClient:
         self._require_auth()
 
         headers = _get_base_headers(self._auth_token)
-        
+
         try:
             response = httpx.get(
                 f"{MS_API_BASE}/meroShare/active/{company_share_id}",
                 headers=headers,
-                timeout=self._timeout
+                timeout=self._timeout,
             )
         except httpx.RequestError as e:
             raise MeroshareAPIError(f"Network error getting issue details: {e}")
@@ -594,15 +606,17 @@ class MeroshareClient:
         self._require_auth()
 
         headers = _get_base_headers(self._auth_token)
-        
+
         try:
             response = httpx.get(
                 f"{MS_API_BASE}/meroShare/applicantForm/customerType/{company_share_id}/{dmat}",
                 headers=headers,
-                timeout=self._timeout
+                timeout=self._timeout,
             )
         except httpx.RequestError as e:
-            raise MeroshareAPIError(f"Network error checking application eligibility: {e}")
+            raise MeroshareAPIError(
+                f"Network error checking application eligibility: {e}"
+            )
 
         # Accept both 200 and 202 (ACCEPTED) as success
         if response.status_code not in (200, 202):
@@ -673,7 +687,7 @@ class MeroshareClient:
                 f"{MS_API_BASE}/meroShare/applicantForm/share/apply",
                 json=data,
                 headers=headers,
-                timeout=self._timeout
+                timeout=self._timeout,
             )
         except httpx.RequestError as e:
             raise MeroshareAPIError(f"Network error during IPO application: {e}")
@@ -710,8 +724,14 @@ class MeroshareClient:
 
         data = {
             "filterFieldParams": [
-                {"key": "companyShare.companyIssue.companyISIN.script", "alias": "Scrip"},
-                {"key": "companyShare.companyIssue.companyISIN.company.name", "alias": "Company Name"},
+                {
+                    "key": "companyShare.companyIssue.companyISIN.script",
+                    "alias": "Scrip",
+                },
+                {
+                    "key": "companyShare.companyIssue.companyISIN.company.name",
+                    "alias": "Company Name",
+                },
             ],
             "page": 1,
             "size": 200,
@@ -727,7 +747,7 @@ class MeroshareClient:
                 f"{MS_API_BASE}/meroShare/applicantForm/active/search/",
                 json=data,
                 headers=headers,
-                timeout=self._timeout
+                timeout=self._timeout,
             )
         except httpx.RequestError as e:
             raise MeroshareAPIError(f"Network error fetching application reports: {e}")
