@@ -3,4 +3,4 @@ rich>=15.0.0,<16.0.0
 httpx>=0.27.0,<1.0.0
 
 # Telegram bot (job-queue extra pulls in APScheduler for scheduled jobs)
-python-telegram-bot[job-queue]>=20.0,<22.0
+python-telegram-bot[job-queue]>=22.7,<23.0
