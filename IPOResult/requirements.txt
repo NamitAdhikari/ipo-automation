@@ -2,7 +2,7 @@
 # Python 3.8+
 
 # Web automation
-selenium==4.43.0
+selenium==4.44.0
 
 # Machine Learning / CNN Model
 tensorflow==2.20.0
